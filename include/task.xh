@@ -1,0 +1,27 @@
+
+#include <stdlib.h>
+#include <stdbool.h>
+#include <pthread.h>
+
+#ifndef _TASK_XH
+#define _TASK_XH
+
+typedef struct task_buffer *task_buffer_t;
+
+typedef closure<(task_buffer_t) -> void> task_t;
+
+struct task_buffer {
+  task_t *buffer;
+  size_t size;
+  size_t capacity;
+  bool is_shared;
+  pthread_mutex_t mutex;
+};
+
+struct task_buffer create_task_buffer(size_t capacity);
+struct task_buffer create_shared_task_buffer(size_t capacity);
+
+void put_task(task_buffer_t buffer, task_t task);
+task_t get_task(task_buffer_t buffer);
+
+#endif
