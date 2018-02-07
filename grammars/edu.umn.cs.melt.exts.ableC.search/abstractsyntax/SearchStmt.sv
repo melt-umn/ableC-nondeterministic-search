@@ -36,9 +36,9 @@ top::SearchStmt ::= s::SearchStmt
   top.translation =
     stmtTranslation(
       seqStmt(
-        top.nextTranslation.closureRefInit,
+        top.nextTranslation.asClosureRef.fst,
         compoundStmt(s.translation.asStmt)));
-  s.nextTranslation = top.nextTranslation.closureRef;
+  s.nextTranslation = closureRefTranslation(top.nextTranslation.asClosureRef.snd);
 }
 
 abstract production stmtSearchStmt
@@ -78,39 +78,55 @@ top::SearchStmt ::= h::SearchStmt t::SearchStmt
   top.translation =
     stmtTranslation(
       foldStmt(
-        top.nextTranslation.closureRefInit ::
+        top.nextTranslation.asClosureRef.fst ::
         map((.asStmtLazy), map((.translation), top.choices))));
-  h.nextTranslation = top.nextTranslation.closureRef;
+  h.nextTranslation = closureRefTranslation(top.nextTranslation.asClosureRef.snd);
   t.nextTranslation = h.nextTranslation;
 }
 
-abstract production ambVarSearchStmt
-top::SearchStmt ::= bty::BaseTypeExpr mty::TypeModifierExpr n::Name f::Name a::Exprs
+abstract production ambSearchStmt
+top::SearchStmt ::= f::Name a::Exprs
 {
-  top.pp = pp"amb ${bty.pp} ${mty.lpp}${n.pp}${mty.rpp} = ${f.pp}(${ppImplode(pp", ", a.pps)});";
+  top.pp = pp"amb ${f.pp}(${ppImplode(pp", ", a.pps)});";
+  forwards to
+    ambVarSearchStmt(
+      directTypeExpr(f.searchFunctionItem.resultType),
+      baseTypeExpr(),
+      name(s"_result_${toString(genInt())}", location=builtin),
+      f, a);
+}
+
+abstract production ambVarSearchStmt
+top::SearchStmt ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name f::Name a::Exprs
+{
+  top.pp = pp"amb ${bty.pp} ${mty.lpp}${id.pp}${mty.rpp} = ${f.pp}(${ppImplode(pp", ", a.pps)});";
   top.errors := bty.errors ++ mty.errors ++ a.errors;
-  -- n.searchFunctionRedeclarationCheck ++ f.searchFunctionLookupCheck ++ 
-  
-  production d::Declarator = declarator(n, mty, nilAttribute(), nothingInitializer());
-  d.env = top.env;
-  d.baseType = bty.typerep;
-  d.typeModifiersIn = bty.typeModifiers;
-  d.isTopLevel = false;
-  d.isTypedef = false;
-  d.givenAttributes = nilAttribute();
-  d.returnType = nothing();
+  top.errors <- id.valueRedeclarationCheckNoCompatible;
+  top.errors <- f.searchFunctionLookupCheck;
+  top.errors <-
+    if !compatibleTypes(bty.typerep, f.searchFunctionItem.resultType, true, false)
+    then [err(f.location, s"Incompatible type in amb var declaration (expected ${showType(bty.typerep)}, got ${showType(f.searchFunctionItem.resultType)}")]
+    else [];
+  top.errors <- a.argumentErrors;
   
   top.defs := [];
   
   top.translation =
     stmtTranslation(
-      exprStmt(
-        directCallExpr(
-          n,
-          consExpr(
-            case d.typerep of
-              builtinType(_, voidType()) -> top.nextTranslation.asClosure
-            | _ -> error("Not implemented")
-            end, a),
-          location=builtin)));
+      substStmt(
+        [typedefSubstitution("__result_type__", typeModifierTypeExpr(bty, mty)),
+         stmtSubstitution("__body__", top.nextTranslation.asStmt),
+         exprsSubstitution("__args__", a)],
+        parseStmt(s"""
+_search_function${f.name}(
+  _schedule,
+  lambda (${case bty.typerep of
+              builtinType(_, voidType()) -> ""
+            | _ -> s", __result_type__ ${id.name}"
+            end}) -> void { __body__; },
+  __args__);""")));
+  
+  bty.givenRefId = nothing();
+  mty.baseType = bty.typerep;
+  mty.typeModifiersIn = bty.typeModifiers;
 }

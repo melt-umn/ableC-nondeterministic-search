@@ -69,6 +69,37 @@ top::Def ::= s::String  t::SearchFunctionItem
   top.searchFunctionContribs = [pair(s, t)];
 }
 
+-- General convinence stuff with Name
+attribute searchFunctionEnv occurs on Name;
+
+synthesized attribute searchFunctionRedeclarationCheck::[Message] occurs on Name;
+synthesized attribute searchFunctionLookupCheck::[Message] occurs on Name;
+synthesized attribute searchFunctionItem::Decorated SearchFunctionItem occurs on Name;
+
+aspect production name
+top::Name ::= n::String
+{
+  top.searchFunctionRedeclarationCheck =
+    case lookupInLocalScope(n, top.searchFunctionEnv) of
+    | [] -> []
+    | v :: _ -> 
+        [err(top.location, 
+          "Redeclaration of " ++ n ++ ". Original (from line " ++
+          toString(v.sourceLocation.line) ++ ")")]
+    end;
+  
+  local searchFunctions::[SearchFunctionItem] = lookupScope(n, top.searchFunctionEnv);
+  top.searchFunctionLookupCheck =
+    case searchFunctions of
+    | [] -> [err(top.location, "Undeclared search function " ++ n)]
+    | _ :: _ -> []
+    end;
+  
+  local searchFunction::SearchFunctionItem =
+    if null(searchFunctions) then errorSearchFunctionItem() else head(searchFunctions);
+  top.searchFunctionItem = searchFunction;
+}
+
 -- Make all non-global value items in the env const
 function constEnv
 Decorated Env ::= env::Decorated Env

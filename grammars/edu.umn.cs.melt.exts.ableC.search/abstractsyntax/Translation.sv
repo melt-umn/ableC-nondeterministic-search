@@ -1,13 +1,11 @@
 grammar edu:umn:cs:melt:exts:ableC:search:abstractsyntax;
 
+synthesized attribute asClosure::Expr;
 synthesized attribute asStmt::Stmt;
 synthesized attribute asStmtLazy::Stmt;
-synthesized attribute asClosure::Expr;
+synthesized attribute asClosureRef::Pair<Stmt Name>;
 
-synthesized attribute closureRef::Decorated Translation;
-synthesized attribute closureRefInit::Stmt;
-
-nonterminal Translation with asStmt, asStmtLazy, asClosure, closureRef, closureRefInit;
+nonterminal Translation with asClosure, asStmt, asStmtLazy, asClosureRef;
 
 abstract production stmtTranslation_i
 top::Translation ::= s::Stmt
@@ -16,29 +14,15 @@ top::Translation ::= s::Stmt
   
   forwards to
     closureTranslation_i(
-      lambdaStmtExpr(
-        nothingExpr(),
-        nothingCaptureList(),
-        consParameters(
-          parameterDecl(
-            [],
-            typedefTypeExpr(nilQualifier(), name("task_buffer_t", location=builtin)),
-            baseTypeExpr(),
-            justName(name("_schedule", location=builtin)),
-            nilAttribute()),
-          nilParameters()),
-        typeName(
-          builtinTypeExpr(nilQualifier(), voidType()),
-          baseTypeExpr()),
-        s,
-        location=builtin));
+      substExpr(
+        [stmtSubstitution("__body__", s)],
+        parseExpr(s"({proto_typedef task_buffer_t; lambda (task_buffer_t _schedule) -> void { __body__; };})")));
 }
 
 abstract production closureRefTranslation_i
 top::Translation ::= n::Name
 {
-  top.closureRef = top;
-  top.closureRefInit = nullStmt();
+  top.asClosureRef = pair(nullStmt(), n);
 
   forwards to closureTranslation_i(declRefExpr(n, location=builtin));
 }
@@ -46,36 +30,34 @@ top::Translation ::= n::Name
 abstract production closureTranslation_i
 top::Translation ::= e::Expr
 {
+  top.asClosure = e;
   top.asStmt =
     exprStmt(
       applyExpr(
         e,
-        consExpr(declRefExpr(name("_schedule", location=builtin), location=builtin), nilExpr()),
+        foldExpr([declRefExpr(name("_schedule", location=builtin), location=builtin)]),
         location=builtin));
   top.asStmtLazy =
     exprStmt(
       directCallExpr(
         name("put_task", location=builtin),
-        consExpr(
-          declRefExpr(name("_schedule", location=builtin), location=builtin),
-          consExpr(e, nilExpr())),
+        foldExpr([declRefExpr(name("_schedule", location=builtin), location=builtin), e]),
         location=builtin));
-  top.asClosure = e;
-  
   local tmpId::Name = name("_task_" ++ toString(genInt()), location=builtin);
-  top.closureRef = closureRefTranslation(tmpId);
-  top.closureRefInit =
-    declStmt(
-      variableDecls(
-        [], nilAttribute(),
-        typedefTypeExpr(nilQualifier(), name("task_t", location=builtin)),
-        consDeclarator(
-          declarator(
-            tmpId,
-            baseTypeExpr(),
-            nilAttribute(),
-            justInitializer(exprInitializer(e))),
-          nilDeclarator())));
+  top.asClosureRef =
+    pair(
+      declStmt(
+        variableDecls(
+          [], nilAttribute(),
+          typedefTypeExpr(nilQualifier(), name("task_t", location=builtin)),
+          consDeclarator(
+            declarator(
+              tmpId,
+              baseTypeExpr(),
+              nilAttribute(),
+              justInitializer(exprInitializer(e))),
+            nilDeclarator()))),
+    tmpId);
 }
 
 global stmtTranslation::(Decorated Translation ::= Stmt) = \ s::Stmt -> decorate stmtTranslation_i(s) with {};
