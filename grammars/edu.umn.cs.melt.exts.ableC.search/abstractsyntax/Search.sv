@@ -14,11 +14,18 @@ global builtin::Location = builtinLoc("nondeterministic-search");
 abstract production searchFunctionDeclaration
 top::Decl ::= f::SearchFunctionDecl
 {
+  local localErrors::[Message] = {-checkSearchXHInclude(f.sourceLocation, top.env) ++-} f.errors;
+  local hostTrans::Decl = f.host;
+  local hostErrorTrans::Decl =
+    defsDecl([valueDef("_search_function_" ++ f.name, errorValueItem())]);
+  
   forwards to
     decls(
       foldDecl([
         defsDecl([searchFunctionDef(f.name, searchFunctionItem(f))]),
-        f.host]));
+        if !null(localErrors)
+        then decls(foldDecl([warnDecl(localErrors), hostErrorTrans]))
+        else hostTrans]));
 }
 
 synthesized attribute resultType::Type;
@@ -46,4 +53,13 @@ static __res_type__ _search_function_${id.name}(task_buffer_t _schedule, __cont_
   __body__;
 }
 """)));
+  top.errors := ret.errors ++ params.errors ++ body.errors;
+  top.errors <- id.valueRedeclarationCheckNoCompatible; -- TODO: Prototypes
+  top.name = id.name;
+  top.resultType = ret.typerep;
+  top.parameterTypes = params.typereps;
+  top.sourceLocation = id.location;
+  
+  params.env = addEnv(ret.defs, ret.env);
+  body.env = addEnv(params.defs, params.env);
 }
