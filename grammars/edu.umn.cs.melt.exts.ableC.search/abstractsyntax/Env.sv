@@ -101,8 +101,78 @@ top::Name ::= n::String
 }
 
 -- Make all non-global value items in the env const
-function constEnv
-Decorated Env ::= env::Decorated Env
+synthesized attribute asCaptured<a>::a;
+
+attribute asCaptured<Decorated Env> occurs on Env;
+
+aspect production emptyEnv_i
+top::Env ::=
 {
-  return error("Not implemented");
+  top.asCaptured = emptyEnv();
 }
+aspect production addEnv_i
+top::Env ::= d::Defs  e::Decorated Env
+{
+  top.asCaptured =
+    case e of
+      emptyEnv_i() -> top -- This is the global scope, everything here stays non-const
+    | _ -> addEnv(d.asCaptured, e.asCaptured)
+    end;
+}
+aspect production openScopeEnv_i
+top::Env ::= e::Decorated Env
+{
+  top.asCaptured = openScopeEnv(e.asCaptured);
+}
+aspect production globalEnv_i
+top::Env ::= e::Decorated Env
+{
+  top.asCaptured = globalEnv(e.asCaptured);
+}
+
+attribute asCaptured<[Def]> occurs on Defs;
+
+aspect production consDefs
+top::Defs ::= h::Def  t::Defs
+{
+  top.asCaptured = h.asCaptured :: t.asCaptured;
+}
+
+aspect production nilDefs
+top::Defs ::=
+{
+  top.asCaptured = [];
+}
+
+attribute asCaptured<Def> occurs on Def;
+
+aspect default production
+top::Def ::=
+{
+  top.asCaptured = top;
+}
+
+aspect production valueDef
+top::Def ::= s::String v::ValueItem
+{
+  propagate asCaptured;
+}
+
+attribute asCaptured<ValueItem> occurs on ValueItem;
+
+aspect default production
+top::ValueItem ::= 
+{
+  top.asCaptured = if top.isItemValue then constValueItem(top) else top;
+}
+
+-- Wraps another ValueItem and makes the type const
+abstract production constValueItem
+top::ValueItem ::= ref::Decorated ValueItem
+{
+  top.typerep = addQualifiers([constQualifier(location=builtin)], ref.typerep);
+  top.sourceLocation = ref.sourceLocation;
+  top.isItemValue = ref.isItemValue;
+  top.asCaptured = top; -- Non-interfering optimization
+}
+
