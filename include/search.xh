@@ -1,2 +1,22 @@
 
 #include <task.xh>
+#include <search_drivers.xh>
+
+#ifndef _SEARCH_XH
+#define _SEARCH_XH
+
+// Some general utilities
+search void require(_Bool b) {
+  if (b)
+    succeed;
+  else
+    fail;
+}
+
+search int range(int lower, int upper) {
+  choice for (int i = lower; i < upper; i++) {
+    succeed i;
+  }
+}
+
+#endif

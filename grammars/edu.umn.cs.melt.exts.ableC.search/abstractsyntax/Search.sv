@@ -55,6 +55,7 @@ static __res_type__ _search_function_${id.name}(task_buffer_t _schedule, __cont_
 """)));
   top.errors := ret.errors ++ params.errors ++ body.errors;
   top.errors <- id.valueRedeclarationCheckNoCompatible; -- TODO: Prototypes
+  -- TODO: check header include
   top.name = id.name;
   top.resultType = ret.typerep;
   top.parameterTypes = params.typereps;
@@ -62,4 +63,52 @@ static __res_type__ _search_function_${id.name}(task_buffer_t _schedule, __cont_
   
   params.env = addEnv(ret.defs, ret.env);
   body.env = addEnv(params.defs, params.env);
+}
+
+abstract production invokeExpr
+top::Expr ::= driver::Name result::Expr f::Name a::Exprs
+{
+  top.pp = pp"invoke(${driver.pp}, ${result.pp}, ${f.pp}(${ppImplode(pp", ", a.pps)}))";
+  
+  local resType::Type = f.searchFunctionItem.resultType;
+  local expectedDriverType::Type =
+    functionType(
+      builtinType(nilQualifier(), voidType()),
+      protoFunctionType(
+        [head(lookupValue("task_t", top.env)).typerep,
+         closureType(nilQualifier(), [], builtinType(nilQualifier(), voidType()))],
+        false),
+      nilQualifier());
+  local expectedResultType::Type = pointerType(nilQualifier(), resType);
+  local localErrors::[Message] =
+    f.searchFunctionLookupCheck ++ a.errors ++ driver.valueLookupCheck ++
+    -- TODO: check header include first
+    (if !compatibleTypes(expectedDriverType, driver.valueItem.typerep, true, false)
+     then [err(driver.location, s"Unexpected search driver type (expected ${showType(expectedDriverType)}, got ${showType(driver.valueItem.typerep)})")]
+     else []) ++
+    (if !compatibleTypes(result.typerep, expectedResultType, true, false)
+     then [err(driver.location, s"Unexpected search result type (expected ${showType(expectedResultType)}, got ${showType(result.typerep)})")]
+     else []);
+  local fwrd::Expr =
+    substExpr(
+      [typedefSubstitution("__res_type__", directTypeExpr(resType)),
+       exprsSubstitution("__args__", a)],
+      parseExpr(s"""
+({proto_typedef task_t, task_buffer_t;
+  _Bool _is_success[1] = {0};
+  __res_type__ *_result = __result__;
+  closure<() -> void> _notify_success[1];
+  closure<(__res_type__) -> void> _success_continuation =
+    lambda (__res_type_ result) -> (void) {
+      *_is_success = 1;
+      *_result = result;
+      (*_notify_success)();
+    };
+  task_t _task =
+    lambda (task_buffer_t _schedule) ->
+      (_search_function_${f.name}(_schedule, _success_continuation, __args__));
+  ${driver.name}(_task, _notify_success);
+  *_is_success;})"""));
+  
+  forwards to mkErrorCheck(localErrors, fwrd);
 }

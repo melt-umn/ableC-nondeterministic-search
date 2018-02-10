@@ -8,7 +8,9 @@ synthesized attribute choices::[Decorated SearchStmt];
 inherited attribute nextTranslation::Decorated Translation;
 synthesized attribute translation::Decorated Translation;
 
-synthesized attribute hasContinuation::Boolean; -- true if translation wrapps nextTranslation in a closure
+-- true if flow of control is passed elsewhere by translation - i.e. nextTranslation is NOT simply
+-- appended with seqStmt
+synthesized attribute hasContinuation::Boolean;
 
 nonterminal SearchStmt with env, expectedResultType, nextTranslation, pp, seqs, choices, errors, defs, translation, hasContinuation;
 
@@ -49,11 +51,11 @@ top::SearchStmt ::= s::SearchStmt
   local directTranslation::Stmt = compoundStmt(s.translation.asStmt);
   top.translation =
     stmtTranslation(
-      if top.hasContinuation
+      if s.hasContinuation
       then seqStmt(top.nextTranslation.asClosureRef.fst, directTranslation)
       else seqStmt(directTranslation, top.nextTranslation.asStmt));
   s.nextTranslation =
-    if top.hasContinuation
+    if s.hasContinuation
     then closureRefTranslation(top.nextTranslation.asClosureRef.snd)
     else stmtTranslation(nullStmt());
   
@@ -89,7 +91,7 @@ top::SearchStmt ::= me::MaybeExpr
       substStmt(
         [declRefSubstitution("__result__", me.justTheExpr.fromJust)],
         parseStmt(s"_continuation(${if me.isJust then "__result__" else ""});")));
-  top.hasContinuation = false;
+  top.hasContinuation = true;
 }
 
 abstract production failSearchStmt
@@ -99,7 +101,7 @@ top::SearchStmt ::=
   top.errors := [];
   top.defs := [];
   top.translation = stmtTranslation(nullStmt());
-  top.hasContinuation = false;
+  top.hasContinuation = true;
 }
 
 abstract production seqSearchStmt

@@ -1,6 +1,5 @@
 
 #include <stdlib.h>
-#include <stdbool.h>
 #include <pthread.h>
 
 #ifndef _TASK_XH
@@ -14,7 +13,7 @@ struct task_buffer {
   task_t *buffer;
   size_t size;
   size_t capacity;
-  bool is_shared;
+  _Bool is_shared;
   pthread_mutex_t mutex;
 };
 

@@ -1,0 +1,9 @@
+
+#include <task.xh>
+
+#ifndef _SEARCH_DRIVERS_XH
+#define _SEARCH_DRIVERS_XH
+
+void search_sequential(task_t task, closure<() -> void> *notify_success);
+
+#endif
