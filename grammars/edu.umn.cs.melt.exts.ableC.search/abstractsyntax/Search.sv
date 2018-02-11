@@ -34,35 +34,76 @@ synthesized attribute parameterTypes::[Type];
 nonterminal SearchFunctionDecl with env, pp, host<Decl>, errors, name, resultType, parameterTypes, sourceLocation;
 
 abstract production searchFunctionDecl
-top::SearchFunctionDecl ::= ret::TypeName id::Name params::Parameters body::SearchStmt
+top::SearchFunctionDecl ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name body::SearchStmt
 {
   top.pp =
     ppConcat([
-      text("search"), space(), ret.pp, space(), id.pp,
-      parens(ppImplode(text(", "), params.pps)),
+      text("search"), space(), bty.pp, space(), mty.lpp, id.pp, mty.rpp, line(),
       braces(cat(line(), nestlines(2, cat(body.pp, line()))))]);
+  
+  local parameters::Decorated Parameters =
+    case mty of
+    | functionTypeExprWithArgs(result, params, variadic, q) -> params
+    | _ -> error("mty should always be a functionTypeExprWithArgs")
+    end;
+  local result::Decorated TypeModifierExpr =
+    case mty of
+    | functionTypeExprWithArgs(result, params, variadic, q) -> result
+    | _ -> error("mty should always be a functionTypeExprWithArgs")
+    end;
+  
+  local thisSearchFunctionDef::[Def] = [searchFunctionDef(id.name, searchFunctionItem(top))];
   top.host =
-    substDecl(
-      [typedefSubstitution("__res_type__", typeModifierTypeExpr(ret.bty, ret.mty)),
-       parametersSubstitution("__params__", params.host),
-       stmtSubstitution("__body__", body.translation.asStmt)],
-      decls(parseDecls(s"""
-proto_typedef bool, __res_type__, __params__;
-
-static __res_type__ _search_function_${id.name}(task_buffer_t _schedule, __cont_type__ _continuation, __params__) {
-  __body__;
-}
-""")));
-  top.errors := ret.errors ++ params.errors ++ body.errors;
+    functionDeclaration(
+      functionDecl(
+        [], nilSpecialSpecifier(),
+        bty,
+        case mty of
+        | functionTypeExprWithArgs(result, params, variadic, q) ->
+          functionTypeExprWithArgs(
+            result,
+            consParameters(
+               parameterDecl(
+               [],
+                typedefTypeExpr(nilQualifier(), name("task_buffer_t", location=builtin)),
+                baseTypeExpr(),
+                justName(name("_schedule", location=builtin)),
+                nilAttribute()),
+              consParameters(
+                parameterDecl(
+                  [],
+                  closureTypeExpr(
+                    nilQualifier(),
+                    consParameters(
+                      parameterDecl(
+                        [],
+                        directTypeExpr(result.typerep),
+                        baseTypeExpr(),
+                        nothingName(),
+                        nilAttribute()),
+                      nilParameters()),
+                    typeName(builtinTypeExpr(nilQualifier(), voidType()), baseTypeExpr())),
+                  baseTypeExpr(),
+                  justName(name("_continuation", location=builtin)),
+                  nilAttribute()),
+                params)),
+            variadic, q)
+        | _ -> error("mty should always be a functionTypeExprWithArgs")
+        end,
+        id,
+        nilAttribute(),
+        nilDecl(),
+        body.translation.asStmt));
+  top.errors := bty.errors ++ mty.errors ++ body.errors;
   top.errors <- id.valueRedeclarationCheckNoCompatible; -- TODO: Prototypes
   -- TODO: check header include
   top.name = id.name;
-  top.resultType = ret.typerep;
-  top.parameterTypes = params.typereps;
+  top.resultType = result.typerep;
+  top.parameterTypes = parameters.typereps;
   top.sourceLocation = id.location;
   
-  params.env = addEnv(ret.defs, ret.env);
-  body.env = addEnv(params.defs, params.env);
+  mty.env = openScopeEnv(addEnv(bty.defs ++ thisSearchFunctionDef, bty.env));
+  body.env = addEnv(parameters.defs, mty.env);
 }
 
 abstract production invokeExpr

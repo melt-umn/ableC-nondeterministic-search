@@ -148,7 +148,7 @@ abstract production ifThenSearchStmt
 top::SearchStmt ::= c::Expr t::SearchStmt
 {
   top.pp = pp"if (${c.pp} {${cat(line(), nestlines(2, t.pp))}}";
-  forwards to ifThenElseSearchStmt(c, t, succeedSearchStmt(nothingExpr()));
+  forwards to ifThenElseSearchStmt(c, t, nullSearchStmt());
 }
 
 abstract production ifThenElseSearchStmt

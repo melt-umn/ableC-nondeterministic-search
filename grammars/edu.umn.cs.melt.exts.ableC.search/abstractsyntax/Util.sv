@@ -33,3 +33,16 @@ global parseDecls::(Decls ::= String) = \ text::String -> foldDecl(hostParsing:p
 global parseDecl::(Decl ::= String) = \ text::String -> hostParsing:parseInline("Decl", declParser, text).ast;
 global parseStmt::(Stmt ::= String) = \ text::String -> foldStmt(hostParsing:parseInline("Stmt", stmtParser, text).ast);
 global parseExpr::(Expr ::= String) = \ text::String -> hostParsing:parseInline("Expr", exprParser, text).ast;
+
+-- Other construction helpers
+function foldSeqSearchStmt
+SearchStmt ::= l::[SearchStmt]
+{
+  return if null(l) then nullSearchStmt() else foldr1(seqSearchStmt, l);
+}
+
+function foldChoiceSearchStmt
+SearchStmt ::= l::[SearchStmt]
+{
+  return if null(l) then nullSearchStmt() else foldr1(choiceSearchStmt, l);
+}
