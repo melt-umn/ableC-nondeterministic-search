@@ -14,6 +14,9 @@ global builtin::Location = builtinLoc("nondeterministic-search");
 abstract production searchFunctionDeclaration
 top::Decl ::= f::SearchFunctionDecl
 {
+  propagate substituted;
+  top.pp = f.pp;
+
   local localErrors::[Message] = {-checkSearchXHInclude(f.sourceLocation, top.env) ++-} f.errors;
   local hostTrans::Decl = f.host;
   local hostErrorTrans::Decl =
@@ -31,11 +34,13 @@ top::Decl ::= f::SearchFunctionDecl
 synthesized attribute resultType::Type;
 synthesized attribute parameterTypes::[Type];
 
-nonterminal SearchFunctionDecl with env, pp, host<Decl>, errors, name, resultType, parameterTypes, sourceLocation;
+nonterminal SearchFunctionDecl with env, substitutions, pp, substituted<SearchFunctionDecl>, host<Decl>, errors, name, resultType, parameterTypes, sourceLocation;
+flowtype SearchFunctionDecl = decorate {env}, pp {}, substituted {substitutions}, host {decorate}, errors {decorate}, name {decorate}, resultType {decorate}, parameterTypes {decorate}, sourceLocation {decorate};
 
 abstract production searchFunctionDecl
 top::SearchFunctionDecl ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name body::SearchStmt
 {
+  propagate substituted;
   top.pp =
     ppConcat([
       text("search"), space(), bty.pp, space(), mty.lpp, id.pp, mty.rpp, line(),
@@ -102,13 +107,21 @@ top::SearchFunctionDecl ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name bod
   top.parameterTypes = parameters.typereps;
   top.sourceLocation = id.location;
   
+  bty.returnType = nothing();
+  bty.givenRefId = nothing();
   mty.env = openScopeEnv(addEnv(bty.defs ++ thisSearchFunctionDef, bty.env));
+  mty.returnType = nothing();
+  mty.baseType = mty.typerep;
+  mty.typeModifiersIn = bty.typeModifiers;
   body.env = addEnv(parameters.defs, mty.env);
+  body.expectedResultType = mty.typerep;
+  body.nextTranslation = stmtTranslation(nullStmt());
 }
 
 abstract production invokeExpr
 top::Expr ::= driver::Name result::Expr f::Name a::Exprs
 {
+  propagate substituted;
   top.pp = pp"invoke(${driver.pp}, ${result.pp}, ${f.pp}(${ppImplode(pp", ", a.pps)}))";
   
   local resType::Type = f.searchFunctionItem.resultType;

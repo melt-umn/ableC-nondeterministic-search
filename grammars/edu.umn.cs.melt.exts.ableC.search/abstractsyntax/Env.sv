@@ -1,8 +1,5 @@
 grammar edu:umn:cs:melt:exts:ableC:search:abstractsyntax;
 
-autocopy attribute searchFunctionEnv::Scopes<SearchFunctionItem>;
-synthesized attribute searchFunctionDefs::Contribs<SearchFunctionItem>;
-
 nonterminal SearchFunctionItem with parameterTypes, resultType, sourceLocation;
 
 abstract production searchFunctionItem
@@ -70,8 +67,6 @@ top::Def ::= s::String  t::SearchFunctionItem
 }
 
 -- General convinence stuff with Name
-attribute searchFunctionEnv occurs on Name;
-
 synthesized attribute searchFunctionRedeclarationCheck::[Message] occurs on Name;
 synthesized attribute searchFunctionLookupCheck::[Message] occurs on Name;
 synthesized attribute searchFunctionItem::Decorated SearchFunctionItem occurs on Name;
@@ -80,7 +75,7 @@ aspect production name
 top::Name ::= n::String
 {
   top.searchFunctionRedeclarationCheck =
-    case lookupInLocalScope(n, top.searchFunctionEnv) of
+    case lookupInLocalScope(n, top.env.searchFunctions) of
     | [] -> []
     | v :: _ -> 
         [err(top.location, 
@@ -88,7 +83,7 @@ top::Name ::= n::String
           toString(v.sourceLocation.line) ++ ")")]
     end;
   
-  local searchFunctions::[SearchFunctionItem] = lookupScope(n, top.searchFunctionEnv);
+  local searchFunctions::[SearchFunctionItem] = lookupScope(n, top.env.searchFunctions);
   top.searchFunctionLookupCheck =
     case searchFunctions of
     | [] -> [err(top.location, "Undeclared search function " ++ n)]
@@ -170,6 +165,7 @@ top::ValueItem ::=
 abstract production constValueItem
 top::ValueItem ::= ref::Decorated ValueItem
 {
+  top.pp = pp"const ${ref.pp}";
   top.typerep = addQualifiers([constQualifier(location=builtin)], ref.typerep);
   top.sourceLocation = ref.sourceLocation;
   top.isItemValue = ref.isItemValue;
