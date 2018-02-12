@@ -10,17 +10,42 @@ typedef struct task_buffer *task_buffer_t;
 typedef closure<(task_buffer_t) -> void> task_t;
 
 struct task_buffer {
-  task_t *buffer;
+  task_t *tasks;
   size_t size;
   size_t capacity;
   _Bool is_shared;
   pthread_mutex_t mutex;
 };
 
-struct task_buffer create_task_buffer(size_t capacity);
-struct task_buffer create_shared_task_buffer(size_t capacity);
+/**
+ * Initialize a new task buffer.
+ * 
+ * @param capacity The initial capacity of the buffer.
+ * @param is_shared true if this task buffer should be thread-safe.
+ * @return An initialized task buffer struct.
+ */
+struct task_buffer create_task_buffer(size_t capacity, _Bool is_shared);
+/**
+ * Destroy a task buffer.
+ * 
+ * @param buffer The buffer to destroy.
+ */
+void destroy_task_buffer(struct task_buffer buffer);
 
-void put_task(task_buffer_t buffer, task_t task);
-task_t get_task(task_buffer_t buffer);
+/**
+ * Place a task in a buffer.
+ * 
+ * @param buffer The buffer for which to put a task.
+ * @param task The task to put.
+ */
+void put_task(const task_buffer_t buffer, task_t task);
+/**
+ * Get a task from a buffer, if one is available.
+ * 
+ * @param buffer The buffer for which to get a task.
+ * @param task A pointer to a task to be filled in.
+ * @return The number of elements initially in the buffer.
+ */
+int get_task(const task_buffer_t buffer, task_t *task);
 
 #endif

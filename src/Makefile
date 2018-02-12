@@ -21,7 +21,7 @@ OBJECT_DIR=../bin
 LIB_DIR=../lib
 
 # The base name of the library to build
-LIB_NAME=skeleton
+LIB_NAME=search
 # The name of the shared library.
 SHARED_LIBRARY=$(LIB_DIR)/lib$(LIB_NAME).so
 # The name of the static library.
