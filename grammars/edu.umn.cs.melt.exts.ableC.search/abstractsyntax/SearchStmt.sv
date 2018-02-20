@@ -52,7 +52,7 @@ abstract production compoundSearchStmt
 top::SearchStmt ::= s::SearchStmt
 {
   propagate substituted;
-  top.pp = notext();
+  top.pp = braces(nestlines(2, ppImplode(line(), top.seqPPs)));
   top.errors := [];
   top.defs := [];
   

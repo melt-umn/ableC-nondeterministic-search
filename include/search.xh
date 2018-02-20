@@ -1,8 +1,8 @@
-
 #include <task.xh>
 #include <search_drivers.xh>
 
 #include <gc.h>
+#include <string.h>
 
 #ifndef _SEARCH_XH
 #define _SEARCH_XH

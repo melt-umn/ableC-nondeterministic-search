@@ -78,9 +78,9 @@ top::SearchFunctionDecl ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name bod
     functionDeclaration(
       functionDecl(
         [], nilSpecialSpecifier(),
-        bty,
+        builtinTypeExpr(nilQualifier(), voidType()),
         functionTypeExprWithArgs(
-          new(result),
+          baseTypeExpr(),
           consParameters(
             parameterDecl(
               [],
@@ -146,7 +146,9 @@ top::Expr ::= driver::Name result::Expr f::Name a::Exprs
       builtinType(nilQualifier(), voidType()),
       protoFunctionType(
         [head(lookupValue("task_t", top.env)).typerep,
-         closureType(nilQualifier(), [], builtinType(nilQualifier(), voidType()))],
+         pointerType(
+           nilQualifier(),
+           closureType(nilQualifier(), [], builtinType(nilQualifier(), voidType())))],
         false),
       nilQualifier());
   local localErrors::[Message] =
@@ -165,14 +167,15 @@ top::Expr ::= driver::Name result::Expr f::Name a::Exprs
   local fwrd::Expr =
     substExpr(
       [typedefSubstitution("__res_type__", directTypeExpr(resType)),
+       declRefSubstitution("__result__", result),
        exprsSubstitution("__args__", a)],
       parseExpr(s"""
-({proto_typedef task_t, task_buffer_t;
+({proto_typedef task_t, task_buffer_t, __res_type__;
   _Bool _is_success[1] = {0};
   __res_type__ *_result = __result__;
   closure<() -> void> _notify_success[1];
   closure<(__res_type__) -> void> _success_continuation =
-    lambda (__res_type_ result) -> (void) {
+    lambda (__res_type__ result) -> (void) {
       *_is_success = 1;
       *_result = result;
       (*_notify_success)();
