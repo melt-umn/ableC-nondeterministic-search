@@ -46,15 +46,31 @@ top::SearchFunctionDecl ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name bod
       text("search"), space(), bty.pp, space(), mty.lpp, id.pp, mty.rpp, line(),
       braces(cat(line(), nestlines(2, cat(body.pp, line()))))]);
   
-  local parameters::Decorated Parameters =
+  local params::Decorated Parameters =
     case mty of
     | functionTypeExprWithArgs(result, params, variadic, q) -> params
-    | _ -> error("mty should always be a functionTypeExprWithArgs")
+    | functionTypeExprWithoutArgs(result, ids, q) ->
+      -- TODO: Raise an error if ids isn't null
+      decorate nilParameters() with {env = top.env; returnType = nothing();}
+    | _ -> error("mty should always be a functionTypeExpr")
     end;
   local result::Decorated TypeModifierExpr =
     case mty of
     | functionTypeExprWithArgs(result, params, variadic, q) -> result
-    | _ -> error("mty should always be a functionTypeExprWithArgs")
+    | functionTypeExprWithoutArgs(result, ids, q) -> result
+    | _ -> error("mty should always be a functionTypeExpr")
+    end;
+  local variadic::Boolean =
+    case mty of
+    | functionTypeExprWithArgs(result, params, variadic, q) -> variadic
+    | functionTypeExprWithoutArgs(result, ids, q) -> false
+    | _ -> error("mty should always be a functionTypeExpr")
+    end;
+  local q::Qualifiers =
+    case mty of
+    | functionTypeExprWithArgs(result, params, variadic, q) -> q
+    | functionTypeExprWithoutArgs(result, ids, q) -> q
+    | _ -> error("mty should always be a functionTypeExpr")
     end;
   
   local thisSearchFunctionDef::[Def] = [searchFunctionDef(id.name, searchFunctionItem(top))];
@@ -63,22 +79,23 @@ top::SearchFunctionDecl ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name bod
       functionDecl(
         [], nilSpecialSpecifier(),
         bty,
-        case mty of
-        | functionTypeExprWithArgs(result, params, variadic, q) ->
-          functionTypeExprWithArgs(
-            result,
+        functionTypeExprWithArgs(
+          new(result),
+          consParameters(
+            parameterDecl(
+              [],
+              typedefTypeExpr(nilQualifier(), name("task_buffer_t", location=builtin)),
+              baseTypeExpr(),
+              justName(name("_schedule", location=builtin)),
+              nilAttribute()),
             consParameters(
-               parameterDecl(
-               [],
-                typedefTypeExpr(nilQualifier(), name("task_buffer_t", location=builtin)),
-                baseTypeExpr(),
-                justName(name("_schedule", location=builtin)),
-                nilAttribute()),
-              consParameters(
-                parameterDecl(
-                  [],
-                  closureTypeExpr(
-                    nilQualifier(),
+              parameterDecl(
+                [],
+                closureTypeExpr(
+                  nilQualifier(),
+                  case result.typerep of
+                    builtinType(_, voidType()) -> nilParameters()
+                  | _ ->
                     consParameters(
                       parameterDecl(
                         [],
@@ -86,16 +103,15 @@ top::SearchFunctionDecl ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name bod
                         baseTypeExpr(),
                         nothingName(),
                         nilAttribute()),
-                      nilParameters()),
-                    typeName(builtinTypeExpr(nilQualifier(), voidType()), baseTypeExpr())),
-                  baseTypeExpr(),
-                  justName(name("_continuation", location=builtin)),
-                  nilAttribute()),
-                params)),
-            variadic, q)
-        | _ -> error("mty should always be a functionTypeExprWithArgs")
-        end,
-        id,
+                      nilParameters())
+                  end,
+                  typeName(builtinTypeExpr(nilQualifier(), voidType()), baseTypeExpr())),
+                baseTypeExpr(),
+                justName(name("_continuation", location=builtin)),
+                nilAttribute()),
+              new(params))),
+          variadic, q),
+        name("_search_function_" ++ id.name, location=builtin),
         nilAttribute(),
         nilDecl(),
         body.translation.asStmt));
@@ -104,17 +120,17 @@ top::SearchFunctionDecl ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name bod
   -- TODO: check header include
   top.name = id.name;
   top.resultType = result.typerep;
-  top.parameterTypes = parameters.typereps;
+  top.parameterTypes = params.typereps;
   top.sourceLocation = id.location;
   
   bty.returnType = nothing();
   bty.givenRefId = nothing();
   mty.env = openScopeEnv(addEnv(bty.defs ++ thisSearchFunctionDef, bty.env));
   mty.returnType = nothing();
-  mty.baseType = mty.typerep;
+  mty.baseType = bty.typerep;
   mty.typeModifiersIn = bty.typeModifiers;
-  body.env = addEnv(parameters.defs, mty.env);
-  body.expectedResultType = mty.typerep;
+  body.env = addEnv(params.defs, mty.env);
+  body.expectedResultType = result.typerep;
   body.nextTranslation = stmtTranslation(nullStmt());
 }
 
@@ -133,16 +149,19 @@ top::Expr ::= driver::Name result::Expr f::Name a::Exprs
          closureType(nilQualifier(), [], builtinType(nilQualifier(), voidType()))],
         false),
       nilQualifier());
-  local expectedResultType::Type = pointerType(nilQualifier(), resType);
   local localErrors::[Message] =
     f.searchFunctionLookupCheck ++ a.errors ++ driver.valueLookupCheck ++
     -- TODO: check header include first
-    (if !compatibleTypes(expectedDriverType, driver.valueItem.typerep, true, false)
+    (if !typeAssignableTo(expectedDriverType, driver.valueItem.typerep)
      then [err(driver.location, s"Unexpected search driver type (expected ${showType(expectedDriverType)}, got ${showType(driver.valueItem.typerep)})")]
      else []) ++
-    (if !compatibleTypes(result.typerep, expectedResultType, true, false)
-     then [err(driver.location, s"Unexpected search result type (expected ${showType(expectedResultType)}, got ${showType(result.typerep)})")]
-     else []);
+    case result.typerep of
+      pointerType(_, subType) ->
+        if !typeAssignableTo(subType, resType)
+        then [err(driver.location, s"Unexpected search result type (expected ${showType(pointerType(nilQualifier(), resType))}, got ${showType(result.typerep)})")]
+        else []
+    | _ -> []
+    end;
   local fwrd::Expr =
     substExpr(
       [typedefSubstitution("__res_type__", directTypeExpr(resType)),

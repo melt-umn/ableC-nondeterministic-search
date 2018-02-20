@@ -1,11 +1,18 @@
 
+# The directory in which to place intermediate object files
+OBJECT_DIR=../bin
+# The directory in which to place compiled libraries
+LIB_DIR=../lib
+# The directory in which to place Silver build intermediate files
+GENERATED_DIR=$(OBJECT_DIR)/generated
+
 # Path from current directory to top level ableC repository
 ABLEC_BASE?=../../../ableC
 # Path from current directory to top level extensions directory
 EXTS_BASE?=../../../extensions
 
 # The jar file to built
-ABLEC_JAR=ableC.jar
+ABLEC_JAR=$(OBJECT_DIR)/ableC.jar
 # The artifact specification grammar to compile
 ARTIFACT=artifact
 # All directories containing grammars that may be included
@@ -13,12 +20,7 @@ GRAMMAR_DIRS=$(ABLEC_BASE) $(wildcard $(EXTS_BASE)/*/grammars)
 # All silver files in included grammars, to be included as dependancies
 GRAMMAR_SOURCES=$(shell find $(GRAMMAR_DIRS) -name *.sv -print0 | xargs -0)
 # Flags passed to silver including the appropriate directories
-override SVFLAGS+=$(addprefix -I ,$(GRAMMAR_DIRS))
-
-# The directory in which to place intermediate object files
-OBJECT_DIR=../bin
-# The directory in which to place compiled libraries
-LIB_DIR=../lib
+override SVFLAGS+=$(addprefix -I ,$(GRAMMAR_DIRS)) -G $(GENERATED_DIR)
 
 # The base name of the library to build
 LIB_NAME=search
@@ -50,7 +52,7 @@ override LDFLAGS+=-shared
 
 all: $(SHARED_LIBRARY) $(STATIC_LIBRARY)
 
-$(ABLEC_JAR): $(GRAMMAR_SOURCES)
+$(ABLEC_JAR): $(GRAMMAR_SOURCES) | $(GENERATED_DIR)
 	touch $(wildcard $(ARTIFACT)/*.sv)
 	silver -o $@ $(SVFLAGS) $(ARTIFACT)
 
@@ -68,6 +70,9 @@ $(OBJECT_DIR):
 	mkdir -p $@
 
 $(LIB_DIR):
+	mkdir -p $@
+
+$(GENERATED_DIR): | $(OBJECT_DIR)
 	mkdir -p $@
 
 clean:

@@ -14,7 +14,7 @@ synthesized attribute translation::Decorated Translation;
 -- appended with seqStmt
 synthesized attribute hasContinuation::Boolean;
 
-nonterminal SearchStmt with env, expectedResultType, nextTranslation, substitutions, pp, seqPPs, choicePPs, substituted<SearchStmt>, seqs, choices, errors, defs, translation, hasContinuation;
+nonterminal SearchStmt with env, expectedResultType, nextTranslation, substitutions, pp, seqPPs, choicePPs, substituted<SearchStmt>, seqs, choices, errors, defs, translation, hasContinuation, location;
 flowtype SearchStmt = decorate {env, expectedResultType, nextTranslation}, pp {}, seqPPs {}, choicePPs {}, substituted {substitutions}, seqs {decorate}, choices {decorate}, errors {decorate}, defs {decorate}, translation {decorate}, hasContinuation {decorate};
 
 aspect default production
@@ -88,11 +88,14 @@ top::SearchStmt ::= me::MaybeExpr
   propagate substituted;
   top.pp = pp"succeed ${me.pp};";
   top.errors := me.errors;
-  local actualTyperep::Type = fromMaybe(builtinType(nilQualifier(), voidType()), me.maybeTyperep);
   top.errors <-
-    if !compatibleTypes(top.expectedResultType, actualTyperep, true, false)
-    then [err(case me of justExpr(e) -> e.location | _ -> txtLoc("TODO location") end, s"Invalid result type (expected ${showType(top.expectedResultType)}, got ${showType(actualTyperep)})")]
-    else [];
+    case top.expectedResultType, fromMaybe(builtinType(nilQualifier(), voidType()), me.maybeTyperep) of
+      builtinType(nilQualifier(), voidType()), builtinType(nilQualifier(), voidType()) -> []
+    | expectedType, actualType ->
+      if !typeAssignableTo(expectedType, actualType)
+      then [err(top.location, s"Incompatible result type (expected ${showType(expectedType)}, got ${showType(actualType)})")]
+      else []
+    end;
   
   top.defs := [];
   top.translation =
@@ -120,7 +123,8 @@ abstract production seqSearchStmt
 top::SearchStmt ::= h::SearchStmt t::SearchStmt
 {
   propagate substituted;
-  top.pp = pp"{${nestlines(2, ppImplode(line(), top.seqPPs))}}";
+  top.pp = braces(nestlines(2, ppImplode(line(), top.seqPPs)));
+  top.seqPPs = h.seqPPs ++ t.seqPPs;
   top.seqs = h.seqs ++ t.seqs;
   top.errors := h.errors ++ t.errors;
   top.defs :=
@@ -143,6 +147,7 @@ top::SearchStmt ::= h::SearchStmt t::SearchStmt
 {
   propagate substituted;
   top.pp = pp"choice {${nestlines(2, ppImplode(line(), top.choicePPs))}}";
+  top.choicePPs = h.choicePPs ++ t.choicePPs;
   top.choices = h.choices ++ t.choices;
   top.errors := h.errors ++ t.errors;
   top.defs := [];
@@ -163,7 +168,7 @@ top::SearchStmt ::= c::Expr t::SearchStmt
 {
   propagate substituted;
   top.pp = pp"if (${c.pp} {${cat(line(), nestlines(2, t.pp))}}";
-  forwards to ifThenElseSearchStmt(c, t, nullSearchStmt());
+  forwards to ifThenElseSearchStmt(c, t, nullSearchStmt(location=top.location), location=top.location);
 }
 
 abstract production ifThenElseSearchStmt
@@ -205,7 +210,8 @@ top::SearchStmt ::= f::Name a::Exprs
       directTypeExpr(f.searchFunctionItem.resultType),
       baseTypeExpr(),
       name(s"_result_${toString(genInt())}", location=builtin),
-      f, a);
+      f, a,
+      location=top.location);
 }
 
 abstract production ambVarSearchStmt
@@ -217,9 +223,13 @@ top::SearchStmt ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name f::Name a::
   top.errors <- id.valueRedeclarationCheckNoCompatible;
   top.errors <- f.searchFunctionLookupCheck;
   top.errors <-
-    if !compatibleTypes(bty.typerep, f.searchFunctionItem.resultType, true, false)
-    then [err(f.location, s"Incompatible type in amb var declaration (expected ${showType(bty.typerep)}, got ${showType(f.searchFunctionItem.resultType)})")]
-    else [];
+    case mty.typerep, f.searchFunctionItem.resultType of
+      builtinType(nilQualifier(), voidType()), builtinType(nilQualifier(), voidType()) -> []
+    | expectedType, actualType ->
+      if !typeAssignableTo(expectedType, actualType)
+      then [err(f.location, s"Incompatible type in amb var declaration (expected ${showType(expectedType)}, got ${showType(actualType)})")]
+      else []
+    end;
   top.errors <- a.argumentErrors;
   
   top.defs := [];
@@ -231,12 +241,12 @@ top::SearchStmt ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name f::Name a::
          stmtSubstitution("__body__", top.nextTranslation.asStmt),
          exprsSubstitution("__args__", a)],
         parseStmt(s"""
-_search_function${f.name}(
+_search_function_${f.name}(
   _schedule,
-  lambda (${case bty.typerep of
+  lambda (${case mty.typerep of
               builtinType(_, voidType()) -> ""
             | _ -> s", __result_type__ ${id.name}"
-            end}) -> void { __body__; },
+            end}) -> (void) { __body__; },
   __args__);""")));
   top.hasContinuation = true;
   

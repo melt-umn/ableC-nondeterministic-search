@@ -2,6 +2,8 @@
 #include <task.xh>
 #include <search_drivers.xh>
 
+#include <gc.h>
+
 #ifndef _SEARCH_XH
 #define _SEARCH_XH
 
@@ -13,10 +15,10 @@ search void require(_Bool b) {
     fail;
 }
 
-search int range(int lower, int upper) {
+/*search int range(int lower, int upper) {
   choice for (int i = lower; i < upper; i++) {
     succeed i;
   }
-}
+  }*/
 
 #endif

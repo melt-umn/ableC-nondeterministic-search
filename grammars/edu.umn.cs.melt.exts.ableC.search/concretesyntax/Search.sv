@@ -22,10 +22,10 @@ top::Declaration_c ::= 'search' f::SearchFunctionDefinition_c
 
 closed nonterminal SearchFunctionDefinition_c with location, ast<Decl>;
 concrete productions top::SearchFunctionDefinition_c
-| d::InitialSearchFunctionDefinition_c '{' ss::SearchStmt_c '}'
+| d::InitialSearchFunctionDefinition_c '{' ss::SearchStmts_c '}'
   {
     top.ast = d.ast;
-    d.givenSearchStmt = ss.ast;
+    d.givenSearchStmt = foldSeqSearchStmt(ss.ast);
   }
   action {
     context = lh:closeScope(context); -- Opened by InitialSearchFunctionDefinition_c.

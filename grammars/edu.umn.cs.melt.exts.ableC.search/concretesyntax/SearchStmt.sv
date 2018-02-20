@@ -1,6 +1,9 @@
 grammar edu:umn:cs:melt:exts:ableC:search:concretesyntax;
 
-terminal Choice_t 'choice' lexer classes {Ckeyword};
+terminal Choice_t  'choice'  lexer classes {Ckeyword};
+terminal Succeed_t 'succeed' lexer classes {Ckeyword};
+terminal Fail_t    'fail'    lexer classes {Ckeyword};
+terminal Amb_t     'amb'     lexer classes {Ckeyword};
 
 {-
  - For double-brace-enclosed host statments
@@ -15,30 +18,40 @@ terminal DoubleLBrace_t '{{'
 nonterminal SearchStmts_c with ast<[SearchStmt]>;
 
 concrete productions top::SearchStmts_c
-| h::SearchStmts_c t::SearchStmt_c
-  { top.ast = h.ast ++ [t.ast]; }
+| h::SearchStmt_c t::SearchStmts_c
+  { top.ast = h.ast :: t.ast; }
 | 
   { top.ast = []; }
 
-nonterminal SearchStmt_c with ast<SearchStmt>;
+nonterminal SearchStmt_c with ast<SearchStmt>, location;
 
 concrete productions top::SearchStmt_c
 | ';'
-  { top.ast = nullSearchStmt(); }
+  { top.ast = nullSearchStmt(location=top.location); }
 | d::SearchDeclaration_c
-  { top.ast = stmtSearchStmt(declStmt(d.ast)); }
+  { top.ast = stmtSearchStmt(declStmt(d.ast), location=top.location); }
 | e::Expr_c ';'
-  { top.ast = stmtSearchStmt(exprStmt(e.ast)); }
+  { top.ast = stmtSearchStmt(exprStmt(e.ast), location=top.location); }
 | '{{' b::BlockItemList_c '}' '}'
-  { top.ast = stmtSearchStmt(compoundStmt(foldStmt(b.ast))); }
+  { top.ast = stmtSearchStmt(compoundStmt(foldStmt(b.ast)), location=top.location); }
+| 'succeed' e::Expr_c ';'
+  { top.ast = succeedSearchStmt(justExpr(e.ast), location=top.location); }
+| 'succeed' ';'
+  { top.ast = succeedSearchStmt(nothingExpr(), location=top.location); }
+| 'fail' ';'
+  { top.ast = failSearchStmt(location=top.location); }
 | '{' ss::SearchStmts_c '}'
-  { top.ast = compoundSearchStmt(foldSeqSearchStmt(ss.ast)); }
+  { top.ast = compoundSearchStmt(foldSeqSearchStmt(ss.ast), location=top.location); }
 | 'choice' '{' ss::SearchStmts_c '}'
-  { top.ast = compoundSearchStmt(foldChoiceSearchStmt(ss.ast)); }
+  { top.ast = compoundSearchStmt(foldChoiceSearchStmt(ss.ast), location=top.location); }
 | 'if' '(' cond::Expr_c ')' tc::SearchStmt_c
-  { top.ast = ifThenSearchStmt(cond.ast, tc.ast); }
+  { top.ast = ifThenSearchStmt(cond.ast, tc.ast, location=top.location); }
 | 'if' '(' cond::Expr_c ')' tc::SearchStmt_c 'else' ec::SearchStmt_c 
-  { top.ast = ifThenElseSearchStmt(cond.ast, tc.ast, ec.ast); }
+  { top.ast = ifThenElseSearchStmt(cond.ast, tc.ast, ec.ast, location=top.location); }
+| 'amb' f::Identifier_t '(' args::ArgumentExprList_c ')'
+  { top.ast = ambSearchStmt(fromId(f), foldExpr(args.ast), location=top.location); }
+| 'amb' f::Identifier_t '(' ')'
+  { top.ast = ambSearchStmt(fromId(f), nilExpr(), location=top.location); }
 
 -- Mirrors Declaration_c, needed to avoid failing MDA by spilling follow set
 closed nonterminal SearchDeclaration_c with location, ast<Decl>;

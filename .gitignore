@@ -8,6 +8,7 @@ build.xml
 *.jar
 
 # Other files
+generated/
 bin/*.c
 examples/*.c
 test/**/*.c
