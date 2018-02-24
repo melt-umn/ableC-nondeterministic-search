@@ -46,11 +46,11 @@ override XCFLAGS+=$(addprefix -I,$(XC_INCLUDE_DIRS))
 override JAVAFLAGS+=-Xss6M
 
 # Flags passed to the C compiler, e.g. to enable various compiler extensions
-override CFLAGS+=-fpic
+override CFLAGS+=-fpic -g
 # Flags passed to the linker when building the shared library
 override LDFLAGS+=-shared
 
-all: $(SHARED_LIBRARY) $(STATIC_LIBRARY)
+all: $(ABLEC_JAR) $(C_FILES) $(OBJECTS) $(SHARED_LIBRARY) $(STATIC_LIBRARY)
 
 $(ABLEC_JAR): $(GRAMMAR_SOURCES) | $(GENERATED_DIR)
 	touch $(wildcard $(ARTIFACT)/*.sv)
