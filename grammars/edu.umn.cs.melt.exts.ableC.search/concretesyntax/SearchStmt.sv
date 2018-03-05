@@ -3,7 +3,8 @@ grammar edu:umn:cs:melt:exts:ableC:search:concretesyntax;
 terminal Choice_t  'choice'  lexer classes {Ckeyword};
 terminal Succeed_t 'succeed' lexer classes {Ckeyword};
 terminal Fail_t    'fail'    lexer classes {Ckeyword};
-terminal Amb_t     'amb'     lexer classes {Ckeyword};
+terminal Choose_t  'choose'  lexer classes {Ckeyword};
+terminal Require_t 'require' lexer classes {Ckeyword};
 
 {-
  - For double-brace-enclosed host statments
@@ -44,14 +45,44 @@ concrete productions top::SearchStmt_c
   { top.ast = compoundSearchStmt(foldSeqSearchStmt(ss.ast), location=top.location); }
 | 'choice' '{' ss::SearchStmts_c '}'
   { top.ast = compoundSearchStmt(foldChoiceSearchStmt(ss.ast), location=top.location); }
+| 'choice' 'for' '(' init::ExprStmt_c cond::ExprStmt_c iter::Expr_c ')' body::SearchStmt_c
+  { top.ast = choiceForSearchStmt(init.asMaybeExpr, cond.asMaybeExpr, justExpr(iter.ast), body.ast, location=top.location); }
+| 'choice' 'for' '(' init::ExprStmt_c cond::ExprStmt_c ')' body::SearchStmt_c
+  { top.ast = choiceForSearchStmt(init.asMaybeExpr, cond.asMaybeExpr, nothingExpr(), body.ast, location=top.location); }
+| 'choice' 'for' '(' init::Declaration_c cond::ExprStmt_c iter::Expr_c ')' body::SearchStmt_c
+  { top.ast = choiceForDeclSearchStmt(init.ast, cond.asMaybeExpr, justExpr(iter.ast), body.ast, location=top.location); }
+| 'choice' 'for' '(' init::Declaration_c cond::ExprStmt_c ')' body::SearchStmt_c
+  { top.ast = choiceForDeclSearchStmt(init.ast, cond.asMaybeExpr, nothingExpr(), body.ast, location=top.location); }
 | 'if' '(' cond::Expr_c ')' tc::SearchStmt_c
   { top.ast = ifThenSearchStmt(cond.ast, tc.ast, location=top.location); }
 | 'if' '(' cond::Expr_c ')' tc::SearchStmt_c 'else' ec::SearchStmt_c 
   { top.ast = ifThenElseSearchStmt(cond.ast, tc.ast, ec.ast, location=top.location); }
-| 'amb' f::Identifier_t '(' args::ArgumentExprList_c ')'
-  { top.ast = ambSearchStmt(fromId(f), foldExpr(args.ast), location=top.location); }
-| 'amb' f::Identifier_t '(' ')'
-  { top.ast = ambSearchStmt(fromId(f), nilExpr(), location=top.location); }
+| 'choose' f::Identifier_t '(' ')' ';'
+  { top.ast = chooseSearchStmt(fromId(f), nilExpr(), location=top.location); }
+| 'choose' f::Identifier_t '(' args::ArgumentExprList_c ')' ';'
+  { top.ast = chooseSearchStmt(fromId(f), foldExpr(args.ast), location=top.location); }
+| 'choose' ds::DeclarationSpecifiers_c d::Declarator_c '=' f::Identifier_t '(' ')' ';'
+  {
+    ds.givenQualifiers = ds.typeQualifiers;
+    local bt :: BaseTypeExpr =
+      figureOutTypeFromSpecifiers(ds.location, ds.typeQualifiers, ds.preTypeSpecifiers, ds.realTypeSpecifiers, ds.mutateTypeSpecifiers);
+    
+    d.givenType = baseTypeExpr();
+    
+    top.ast = chooseVarSearchStmt(bt, d.ast, d.declaredIdent, fromId(f), nilExpr(), location=top.location);
+  }
+| 'choose' ds::DeclarationSpecifiers_c d::Declarator_c '=' f::Identifier_t '(' args::ArgumentExprList_c ')' ';'
+  {
+    ds.givenQualifiers = ds.typeQualifiers;
+    local bt :: BaseTypeExpr =
+      figureOutTypeFromSpecifiers(ds.location, ds.typeQualifiers, ds.preTypeSpecifiers, ds.realTypeSpecifiers, ds.mutateTypeSpecifiers);
+    
+    d.givenType = baseTypeExpr();
+    
+    top.ast = chooseVarSearchStmt(bt, d.ast, d.declaredIdent, fromId(f), foldExpr(args.ast), location=top.location);
+  }
+| 'require' c::Expr_c ';'
+  { top.ast = requireSearchStmt(c.ast, location=top.location); }
 
 -- Mirrors Declaration_c, needed to avoid failing MDA by spilling follow set
 closed nonterminal SearchDeclaration_c with location, ast<Decl>;

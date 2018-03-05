@@ -135,10 +135,10 @@ top::SearchFunctionDecl ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name bod
 }
 
 abstract production invokeExpr
-top::Expr ::= driver::Name result::Expr f::Name a::Exprs
+top::Expr ::= driver::Name result::MaybeExpr f::Name a::Exprs
 {
   propagate substituted;
-  top.pp = pp"invoke(${driver.pp}, ${result.pp}, ${f.pp}(${ppImplode(pp", ", a.pps)}))";
+  top.pp = pp"invoke(${ppImplode(pp", ", driver.pp :: (if result.isJust then [result.pp] else []) ++ [pp"${f.pp}(${ppImplode(pp", ", a.pps)})"])})";
   
   local resType::Type = f.searchFunctionItem.resultType;
   local expectedDriverType::Type =
@@ -157,27 +157,32 @@ top::Expr ::= driver::Name result::Expr f::Name a::Exprs
     (if !typeAssignableTo(expectedDriverType, driver.valueItem.typerep)
      then [err(driver.location, s"Unexpected search driver type (expected ${showType(expectedDriverType)}, got ${showType(driver.valueItem.typerep)})")]
      else []) ++
-    case result.typerep of
-      pointerType(_, subType) ->
-        if !typeAssignableTo(subType, resType)
-        then [err(driver.location, s"Unexpected search result type (expected ${showType(pointerType(nilQualifier(), resType))}, got ${showType(result.typerep)})")]
+    case resType, result of
+      builtinType(nilQualifier(), voidType()), justExpr(e) ->
+        [err(e.location, s"Unexpected search result (invoked function returns void)")]
+    | builtinType(nilQualifier(), voidType()), nothingExpr() -> []
+    | _, justExpr(e) ->
+        if !typeAssignableTo(pointerType(nilQualifier(), resType), e.typerep)
+        then [err(e.location, s"Unexpected search result type (expected ${showType(pointerType(nilQualifier(), resType))}, got ${showType(e.typerep)})")]
         else []
-    | _ -> []
+    | _, nothingExpr() ->
+        [err(top.location, s"Expected a search result of type ${showType(pointerType(nilQualifier(), resType))}")]
     end;
   local fwrd::Expr =
     substExpr(
       [typedefSubstitution("__res_type__", directTypeExpr(resType)),
-       declRefSubstitution("__result__", result),
+       declRefSubstitution("__result__", result.justTheExpr.fromJust),
        exprsSubstitution("__args__", a)],
       parseExpr(s"""
 ({proto_typedef task_t, task_buffer_t, __res_type__;
   _Bool _is_success[1] = {0};
-  __res_type__ *_result = __result__;
+  ${if result.isJust then "__res_type__ *_result = __result__;" else ""}
   closure<() -> void> _notify_success[1];
-  closure<(__res_type__) -> void> _success_continuation =
-    lambda (__res_type__ result) -> (void) {
+  closure<(${if result.isJust then "__res_type__" else "void"}) -> void> _success_continuation =
+    lambda (${if result.isJust then "__res_type__ result" else "void"}) -> (void) {
+      printf("result = %d\n", result); 
       *_is_success = 1;
-      *_result = result;
+      ${if result.isJust then "*_result = result;" else ""}
       (*_notify_success)();
     };
   task_t _task =

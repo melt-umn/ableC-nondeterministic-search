@@ -8,17 +8,17 @@
 #define _SEARCH_XH
 
 // Some general utilities
-search void require(_Bool b) {
+search void _require(_Bool b) {
   if (b)
     succeed;
   else
     fail;
 }
 
-/*search int range(int lower, int upper) {
+search int range(int lower, int upper) {
   choice for (int i = lower; i < upper; i++) {
     succeed i;
   }
-  }*/
+}
 
 #endif

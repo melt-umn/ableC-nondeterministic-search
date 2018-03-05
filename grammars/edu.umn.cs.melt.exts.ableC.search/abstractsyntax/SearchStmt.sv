@@ -163,6 +163,63 @@ top::SearchStmt ::= h::SearchStmt t::SearchStmt
   top.hasContinuation = true;
 }
 
+abstract production choiceForSearchStmt
+top::SearchStmt ::= i::MaybeExpr  c::MaybeExpr  s::MaybeExpr  b::SearchStmt
+{
+  propagate substituted;
+  top.pp = 
+    ppConcat([text("choice for"), parens(ppConcat([i.pp, semi(), space(), c.pp, semi(), space(), s.pp])), line(),
+      braces(nestlines(2, b.pp)) ]);
+  top.errors := i.errors ++ c.errors ++ s.errors ++ b.errors;
+  top.defs := [];
+  
+  top.translation =
+    stmtTranslation(
+      seqStmt(
+        top.nextTranslation.asClosureRef.fst,
+        forStmt(i, c, s, b.translation.asStmt)));
+  b.nextTranslation = closureRefTranslation(top.nextTranslation.asClosureRef.snd);
+  
+  top.hasContinuation = true;
+  
+  i.env = openScopeEnv(top.env);
+  c.env = addEnv(i.defs, i.env);
+  s.env = addEnv(c.defs, c.env);
+  b.env = addEnv(s.defs, s.env);
+  i.returnType = nothing();
+  c.returnType = nothing();
+  s.returnType = nothing();
+}
+
+abstract production choiceForDeclSearchStmt
+top::SearchStmt ::= i::Decl  c::MaybeExpr  s::MaybeExpr  b::SearchStmt
+{
+  propagate substituted;
+  top.pp = 
+    ppConcat([text("choice for"), parens(ppConcat([i.pp, semi(), space(), c.pp, semi(), space(), s.pp])), line(),
+      braces(nestlines(2, b.pp)) ]);
+  top.errors := i.errors ++ c.errors ++ s.errors ++ b.errors;
+  top.defs := [];
+  
+  top.translation =
+    stmtTranslation(
+      seqStmt(
+        top.nextTranslation.asClosureRef.fst,
+        forDeclStmt(i, c, s, b.translation.asStmt)));
+  b.nextTranslation = closureRefTranslation(top.nextTranslation.asClosureRef.snd);
+  
+  top.hasContinuation = true;
+  
+  i.env = openScopeEnv(top.env);
+  c.env = addEnv(i.defs, i.env);
+  s.env = addEnv(c.defs, c.env);
+  b.env = addEnv(s.defs, s.env);
+  i.isTopLevel = false;
+  i.returnType = nothing();
+  c.returnType = nothing();
+  s.returnType = nothing();
+}
+
 abstract production ifThenSearchStmt
 top::SearchStmt ::= c::Expr t::SearchStmt
 {
@@ -198,15 +255,15 @@ top::SearchStmt ::= c::Expr t::SearchStmt e::SearchStmt
   c.returnType = nothing();
 }
 
-abstract production ambSearchStmt
+abstract production chooseSearchStmt
 top::SearchStmt ::= f::Name a::Exprs
 {
   propagate substituted;
-  top.pp = pp"amb ${f.pp}(${ppImplode(pp", ", a.pps)});";
+  top.pp = pp"choose ${f.pp}(${ppImplode(pp", ", a.pps)});";
   top.seqPPs = [top.pp];
   top.choicePPs = [top.pp];
   forwards to
-    ambVarSearchStmt(
+    chooseVarSearchStmt(
       directTypeExpr(f.searchFunctionItem.resultType),
       baseTypeExpr(),
       name(s"_result_${toString(genInt())}", location=builtin),
@@ -214,25 +271,25 @@ top::SearchStmt ::= f::Name a::Exprs
       location=top.location);
 }
 
-abstract production ambVarSearchStmt
+abstract production chooseVarSearchStmt
 top::SearchStmt ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name f::Name a::Exprs
 {
   propagate substituted;
-  top.pp = pp"amb ${bty.pp} ${mty.lpp}${id.pp}${mty.rpp} = ${f.pp}(${ppImplode(pp", ", a.pps)});";
+  top.pp = pp"choose ${bty.pp} ${mty.lpp}${id.pp}${mty.rpp} = ${f.pp}(${ppImplode(pp", ", a.pps)});";
   top.errors := bty.errors ++ mty.errors ++ a.errors;
   top.errors <- id.valueRedeclarationCheckNoCompatible;
   top.errors <- f.searchFunctionLookupCheck;
   top.errors <-
-    case mty.typerep, f.searchFunctionItem.resultType of
+    case d.typerep, f.searchFunctionItem.resultType of
       builtinType(nilQualifier(), voidType()), builtinType(nilQualifier(), voidType()) -> []
     | expectedType, actualType ->
       if !typeAssignableTo(expectedType, actualType)
-      then [err(f.location, s"Incompatible type in amb var declaration (expected ${showType(expectedType)}, got ${showType(actualType)})")]
+      then [err(f.location, s"Incompatible type in choose var declaration (expected ${showType(expectedType)}, got ${showType(actualType)})")]
       else []
     end;
   top.errors <- a.argumentErrors;
   
-  top.defs := [];
+  top.defs := d.defs;
   
   top.translation =
     stmtTranslation(
@@ -243,12 +300,21 @@ top::SearchStmt ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name f::Name a::
         parseStmt(s"""
 _search_function_${f.name}(
   _schedule,
-  lambda (${case mty.typerep of
-              builtinType(_, voidType()) -> ""
-            | _ -> s", __result_type__ ${id.name}"
+  lambda (${case d.typerep of
+              builtinType(_, voidType()) -> "void"
+            | _ -> s"__result_type__ ${id.name}"
             end}) -> (void) { __body__; },
   __args__);""")));
   top.hasContinuation = true;
+  
+  production d::Declarator = declarator(id, mty, nilAttribute(), nothingInitializer());
+  d.env = top.env;
+  d.baseType = bty.typerep;
+  d.typeModifiersIn = bty.typeModifiers;
+  d.isTopLevel = false;
+  d.isTypedef = false;
+  d.givenAttributes = nilAttribute();
+  d.returnType = nothing();
   
   bty.givenRefId = nothing();
   bty.returnType = nothing();
@@ -260,4 +326,18 @@ _search_function_${f.name}(
   a.argumentPosition = 1;
   a.callExpr = decorate declRefExpr(f, location=builtin) with {env = top.env; returnType = nothing();};
   a.callVariadic = false;
+}
+
+abstract production requireSearchStmt
+top::SearchStmt ::= c::Expr
+{
+  top.pp = pp"require ${c.pp};";
+  
+  local localErrors::[Message] =
+    if c.typerep.defaultFunctionArrayLvalueConversion.isScalarType then []
+    else [err(c.location, "Require condition must be scalar type, instead it is " ++ showType(c.typerep))];
+  
+  -- TODO: Implement this directly
+  forwards to
+    chooseSearchStmt(name("_require", location=builtin), consExpr(c, nilExpr()), location=builtin);
 }

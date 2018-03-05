@@ -8,7 +8,7 @@ search int foo(int x, int y) {
     *z = x;
     *z = y;
   }
-  amb require(*z % 2 == 0);
+  require *z % 2 == 0;
   succeed *z;
 }
 
