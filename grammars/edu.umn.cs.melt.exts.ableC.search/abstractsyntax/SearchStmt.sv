@@ -331,13 +331,13 @@ _search_function_${f.name}(
 abstract production requireSearchStmt
 top::SearchStmt ::= c::Expr
 {
+  propagate substituted;
   top.pp = pp"require ${c.pp};";
-  
-  local localErrors::[Message] =
+  top.errors := c.errors;
+  top.errors <-
     if c.typerep.defaultFunctionArrayLvalueConversion.isScalarType then []
-    else [err(c.location, "Require condition must be scalar type, instead it is " ++ showType(c.typerep))];
-  
-  -- TODO: Implement this directly
-  forwards to
-    chooseSearchStmt(name("_require", location=builtin), consExpr(c, nilExpr()), location=builtin);
+    else [err(c.location, "require condition must be scalar type, instead it is " ++ showType(c.typerep))];
+  top.defs := c.defs;
+  top.translation = stmtTranslation(ifStmtNoElse(c, top.nextTranslation.asStmt));
+  top.hasContinuation = false;
 }

@@ -180,7 +180,6 @@ top::Expr ::= driver::Name result::MaybeExpr f::Name a::Exprs
   closure<() -> void> _notify_success[1];
   closure<(${if result.isJust then "__res_type__" else "void"}) -> void> _success_continuation =
     lambda (${if result.isJust then "__res_type__ result" else "void"}) -> (void) {
-      printf("result = %d\n", result); 
       *_is_success = 1;
       ${if result.isJust then "*_result = result;" else ""}
       (*_notify_success)();
