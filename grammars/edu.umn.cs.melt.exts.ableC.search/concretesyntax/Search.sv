@@ -30,7 +30,7 @@ concrete productions top::SearchFunctionDefinition_c
   action {
     context = lh:closeScope(context); -- Opened by InitialSearchFunctionDefinition_c.
   }
-{-| 'ds::DeclarationSpecifiers_c d::Declarator_c ';'
+| ds::SpecifierQualifierList_c d::Declarator_c ';'
   {
     ds.givenQualifiers = ds.typeQualifiers;
     d.givenType = baseTypeExpr();
@@ -40,12 +40,8 @@ concrete productions top::SearchFunctionDefinition_c
     local specialSpecifiers :: SpecialSpecifiers =
       foldr(consSpecialSpecifier, nilSpecialSpecifier(), ds.specialSpecifiers);
 
-    top.ast =
-      searchFunctionProto(
-        ds.storageClass, specialSpecifiers, bt, d.ast,
-        d.declaredIdent, ds.attributes
-      );
-  }-}
+    top.ast = searchFunctionDeclaration(searchFunctionProto(bt, d.ast, d.declaredIdent));
+  }
 
 inherited attribute givenSearchStmt::SearchStmt;
 

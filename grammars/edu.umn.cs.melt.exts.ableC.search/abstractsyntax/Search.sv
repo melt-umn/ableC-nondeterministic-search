@@ -37,6 +37,95 @@ synthesized attribute parameterTypes::[Type];
 nonterminal SearchFunctionDecl with env, substitutions, pp, substituted<SearchFunctionDecl>, host<Decl>, errors, name, resultType, parameterTypes, sourceLocation;
 flowtype SearchFunctionDecl = decorate {env}, pp {}, substituted {substitutions}, host {decorate}, errors {decorate}, name {decorate}, resultType {decorate}, parameterTypes {decorate}, sourceLocation {decorate};
 
+abstract production searchFunctionProto
+top::SearchFunctionDecl ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name
+{
+  propagate substituted;
+  top.pp =
+    ppConcat([
+      text("search"), space(), bty.pp, space(), mty.lpp, id.pp, mty.rpp, semi()]);
+  
+  local params::Decorated Parameters =
+    case mty of
+    | functionTypeExprWithArgs(result, params, variadic, q) -> params
+    | functionTypeExprWithoutArgs(result, ids, q) ->
+      -- TODO: Raise an error if ids isn't null
+      decorate nilParameters() with {env = top.env; returnType = nothing();}
+    | _ -> error("mty should always be a functionTypeExpr")
+    end;
+  local result::Decorated TypeModifierExpr =
+    case mty of
+    | functionTypeExprWithArgs(result, params, variadic, q) -> result
+    | functionTypeExprWithoutArgs(result, ids, q) -> result
+    | _ -> error("mty should always be a functionTypeExpr")
+    end;
+  local variadic::Boolean =
+    case mty of
+    | functionTypeExprWithArgs(result, params, variadic, q) -> variadic
+    | functionTypeExprWithoutArgs(result, ids, q) -> false
+    | _ -> error("mty should always be a functionTypeExpr")
+    end;
+  local q::Qualifiers =
+    case mty of
+    | functionTypeExprWithArgs(result, params, variadic, q) -> q
+    | functionTypeExprWithoutArgs(result, ids, q) -> q
+    | _ -> error("mty should always be a functionTypeExpr")
+    end;
+  
+  top.host =
+    variableDecls(
+      [staticStorageClass()], nilAttribute(),
+      builtinTypeExpr(nilQualifier(), voidType()),
+      consDeclarator(
+        declarator(
+          name("_search_function_" ++ id.name, location=builtin),
+          functionTypeExprWithArgs(
+            baseTypeExpr(),
+            consParameters(
+              parameterDecl(
+                [],
+                typedefTypeExpr(nilQualifier(), name("task_buffer_t", location=builtin)),
+                pointerTypeExpr(
+                  consQualifier(constQualifier(location=builtin), nilQualifier()),
+                  baseTypeExpr()),
+                justName(name("_schedule", location=builtin)),
+                nilAttribute()),
+              consParameters(
+                parameterDecl(
+                  [],
+                  closureTypeExpr(
+                    nilQualifier(),
+                    case result.typerep of
+                      builtinType(_, voidType()) -> nilParameters()
+                    | _ ->
+                      consParameters(
+                        parameterDecl([], bty, new(result), nothingName(), nilAttribute()),
+                        nilParameters())
+                    end,
+                    typeName(builtinTypeExpr(nilQualifier(), voidType()), baseTypeExpr())),
+                  baseTypeExpr(),
+                  justName(name("_continuation", location=builtin)),
+                  nilAttribute()),
+                new(params))),
+            variadic, q),
+          nilAttribute(),
+          nothingInitializer()),
+        nilDeclarator()));
+  top.errors := bty.errors ++ mty.errors;
+  top.errors <- id.searchFunctionRedeclarationCheck(result.typerep, params.typereps);
+  top.name = id.name;
+  top.resultType = result.typerep;
+  top.parameterTypes = params.typereps;
+  top.sourceLocation = id.location;
+  
+  bty.returnType = nothing();
+  bty.givenRefId = nothing();
+  mty.env = openScopeEnv(addEnv(bty.defs, bty.env));
+  mty.returnType = nothing();
+  mty.baseType = bty.typerep;
+  mty.typeModifiersIn = bty.typeModifiers;
+}
+
 abstract production searchFunctionDecl
 top::SearchFunctionDecl ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name body::SearchStmt
 {
@@ -73,11 +162,10 @@ top::SearchFunctionDecl ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name bod
     | _ -> error("mty should always be a functionTypeExpr")
     end;
   
-  local thisSearchFunctionDef::[Def] = [searchFunctionDef(id.name, searchFunctionItem(top))];
   top.host =
     functionDeclaration(
       functionDecl(
-        [], nilSpecialSpecifier(),
+        [staticStorageClass()], consSpecialSpecifier(inlineQualifier(), nilSpecialSpecifier()),
         builtinTypeExpr(nilQualifier(), voidType()),
         functionTypeExprWithArgs(
           baseTypeExpr(),
@@ -85,7 +173,9 @@ top::SearchFunctionDecl ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name bod
             parameterDecl(
               [],
               typedefTypeExpr(nilQualifier(), name("task_buffer_t", location=builtin)),
-              baseTypeExpr(),
+              pointerTypeExpr(
+                consQualifier(constQualifier(location=builtin), nilQualifier()),
+                baseTypeExpr()),
               justName(name("_schedule", location=builtin)),
               nilAttribute()),
             consParameters(
@@ -97,12 +187,7 @@ top::SearchFunctionDecl ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name bod
                     builtinType(_, voidType()) -> nilParameters()
                   | _ ->
                     consParameters(
-                      parameterDecl(
-                        [],
-                        directTypeExpr(result.typerep),
-                        baseTypeExpr(),
-                        nothingName(),
-                        nilAttribute()),
+                      parameterDecl([], bty, new(result), nothingName(), nilAttribute()),
                       nilParameters())
                   end,
                   typeName(builtinTypeExpr(nilQualifier(), voidType()), baseTypeExpr())),
@@ -112,11 +197,12 @@ top::SearchFunctionDecl ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name bod
               new(params))),
           variadic, q),
         name("_search_function_" ++ id.name, location=builtin),
-        nilAttribute(),
-        nilDecl(),
-        body.translation.asStmt));
+    nilAttribute(),
+    nilDecl(),
+    body.translation.asStmt));
   top.errors := bty.errors ++ mty.errors ++ body.errors;
-  top.errors <- id.valueRedeclarationCheckNoCompatible; -- TODO: Prototypes
+  -- TODO: so long as the original wasn't also a definition
+  top.errors <- id.searchFunctionRedeclarationCheck(result.typerep, params.typereps);
   -- TODO: check header include
   top.name = id.name;
   top.resultType = result.typerep;
@@ -125,7 +211,7 @@ top::SearchFunctionDecl ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name bod
   
   bty.returnType = nothing();
   bty.givenRefId = nothing();
-  mty.env = openScopeEnv(addEnv(bty.defs ++ thisSearchFunctionDef, bty.env));
+  mty.env = openScopeEnv(addEnv(bty.defs, bty.env));
   mty.returnType = nothing();
   mty.baseType = bty.typerep;
   mty.typeModifiersIn = bty.typeModifiers;
@@ -185,7 +271,7 @@ top::Expr ::= driver::Name result::MaybeExpr f::Name a::Exprs
       (*_notify_success)();
     };
   task_t _task =
-    lambda (task_buffer_t _schedule) ->
+    lambda (task_buffer_t *const _schedule) ->
       (_search_function_${f.name}(_schedule, _success_continuation, __args__));
   ${driver.name}(_task, _notify_success);
   *_is_success;})"""));

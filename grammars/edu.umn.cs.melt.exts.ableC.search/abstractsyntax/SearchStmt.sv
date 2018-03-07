@@ -53,7 +53,7 @@ top::SearchStmt ::= s::SearchStmt
 {
   propagate substituted;
   top.pp = braces(nestlines(2, ppImplode(line(), top.seqPPs)));
-  top.errors := [];
+  top.errors := s.errors;
   top.defs := [];
   
   local directTranslation::Stmt = compoundStmt(s.translation.asStmt);
@@ -156,6 +156,7 @@ top::SearchStmt ::= h::SearchStmt t::SearchStmt
     stmtTranslation(
       foldStmt(
         top.nextTranslation.asClosureRef.fst ::
+        openFrameStmt ::
         map((.asStmtLazy), map((.translation), top.choices))));
   h.nextTranslation = closureRefTranslation(top.nextTranslation.asClosureRef.snd);
   t.nextTranslation = h.nextTranslation;
@@ -175,9 +176,10 @@ top::SearchStmt ::= i::MaybeExpr  c::MaybeExpr  s::MaybeExpr  b::SearchStmt
   
   top.translation =
     stmtTranslation(
-      seqStmt(
-        top.nextTranslation.asClosureRef.fst,
-        forStmt(i, c, s, b.translation.asStmt)));
+      foldStmt(
+        [top.nextTranslation.asClosureRef.fst,
+         openFrameStmt,
+         forStmt(i, c, s, b.translation.asStmt)]));
   b.nextTranslation = closureRefTranslation(top.nextTranslation.asClosureRef.snd);
   
   top.hasContinuation = true;
@@ -203,9 +205,10 @@ top::SearchStmt ::= i::Decl  c::MaybeExpr  s::MaybeExpr  b::SearchStmt
   
   top.translation =
     stmtTranslation(
-      seqStmt(
-        top.nextTranslation.asClosureRef.fst,
-        forDeclStmt(i, c, s, b.translation.asStmt)));
+      foldStmt(
+        [top.nextTranslation.asClosureRef.fst,
+         openFrameStmt,
+         forDeclStmt(i, c, s, b.translation.asStmt)]));
   b.nextTranslation = closureRefTranslation(top.nextTranslation.asClosureRef.snd);
   
   top.hasContinuation = true;
@@ -263,7 +266,7 @@ top::SearchStmt ::= f::Name a::Exprs
   top.seqPPs = [top.pp];
   top.choicePPs = [top.pp];
   forwards to
-    chooseVarSearchStmt(
+    chooseDeclSearchStmt(
       directTypeExpr(f.searchFunctionItem.resultType),
       baseTypeExpr(),
       name(s"_result_${toString(genInt())}", location=builtin),
@@ -271,7 +274,30 @@ top::SearchStmt ::= f::Name a::Exprs
       location=top.location);
 }
 
-abstract production chooseVarSearchStmt
+abstract production chooseAssignSearchStmt
+top::SearchStmt ::= lhs::Expr f::Name a::Exprs
+{
+  propagate substituted;
+  top.pp = pp"choose ${lhs.pp} = ${f.pp}(${ppImplode(pp", ", a.pps)});";
+  top.seqPPs = [top.pp];
+  top.choicePPs = [top.pp];
+  
+  local resultName::Name = name(s"_result_${toString(genInt())}", location=builtin);
+  forwards to
+    seqSearchStmt(
+      chooseDeclSearchStmt(
+        directTypeExpr(f.searchFunctionItem.resultType),
+        baseTypeExpr(),
+        resultName,
+        f, a,
+        location=top.location),
+      stmtSearchStmt(
+        exprStmt(eqExpr(lhs, declRefExpr(resultName, location=builtin), location=top.location)),
+        location=top.location),
+      location=top.location);
+}
+
+abstract production chooseDeclSearchStmt
 top::SearchStmt ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name f::Name a::Exprs
 {
   propagate substituted;
@@ -284,10 +310,10 @@ top::SearchStmt ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name f::Name a::
       builtinType(nilQualifier(), voidType()), builtinType(nilQualifier(), voidType()) -> []
     | expectedType, actualType ->
       if !typeAssignableTo(expectedType, actualType)
-      then [err(f.location, s"Incompatible type in choose var declaration (expected ${showType(expectedType)}, got ${showType(actualType)})")]
+      then [err(f.location, s"Incompatible type in choose declaration (expected ${showType(expectedType)}, got ${showType(actualType)})")]
       else []
     end;
-  top.errors <- a.argumentErrors;
+  top.errors <- if null(f.searchFunctionLookupCheck) then a.argumentErrors else [];
   
   top.defs := d.defs;
   
@@ -324,7 +350,41 @@ _search_function_${f.name}(
   a.returnType = nothing();
   a.expectedTypes = f.searchFunctionItem.parameterTypes;
   a.argumentPosition = 1;
-  a.callExpr = decorate declRefExpr(f, location=builtin) with {env = top.env; returnType = nothing();};
+  a.callExpr = decorate declRefExpr(f, location=f.location) with {env = top.env; returnType = nothing();};
+  a.callVariadic = false;
+}
+
+abstract production chooseSucceedSearchStmt
+top::SearchStmt ::= f::Name a::Exprs
+{
+  propagate substituted;
+  top.pp = pp"choose succeed ${f.pp}(${ppImplode(pp", ", a.pps)});";
+  top.seqPPs = [top.pp];
+  top.choicePPs = [top.pp];
+  top.errors := a.errors;
+  top.errors <- f.searchFunctionLookupCheck;
+  top.errors <-
+    case top.expectedResultType, f.searchFunctionItem.resultType of
+      builtinType(nilQualifier(), voidType()), builtinType(nilQualifier(), voidType()) -> []
+    | expectedType, actualType ->
+      if !typeAssignableTo(expectedType, actualType)
+      then [err(top.location, s"Incompatible result type (expected ${showType(expectedType)}, got ${showType(actualType)})")]
+      else []
+    end;
+  
+  top.defs := [];
+  
+  top.translation =
+    stmtTranslation(
+      substStmt(
+        [exprsSubstitution("__args__", a)],
+        parseStmt(s"_search_function_${f.name}(_schedule, _continuation, __args__);")));
+  top.hasContinuation = true;
+  
+  a.returnType = nothing();
+  a.expectedTypes = f.searchFunctionItem.parameterTypes;
+  a.argumentPosition = 1;
+  a.callExpr = decorate declRefExpr(f, location=f.location) with {env = top.env; returnType = nothing();};
   a.callVariadic = false;
 }
 
@@ -340,4 +400,8 @@ top::SearchStmt ::= c::Expr
   top.defs := c.defs;
   top.translation = stmtTranslation(ifStmtNoElse(c, top.nextTranslation.asStmt));
   top.hasContinuation = false;
+  
+  c.returnType = nothing();
 }
+
+global openFrameStmt::Stmt = parseStmt("open_frame(_schedule);");

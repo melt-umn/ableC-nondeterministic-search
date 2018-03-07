@@ -67,7 +67,8 @@ top::Def ::= s::String  t::SearchFunctionItem
 }
 
 -- General convinence stuff with Name
-synthesized attribute searchFunctionRedeclarationCheck::[Message] occurs on Name;
+synthesized attribute searchFunctionRedeclarationCheck::([Message] ::= Type [Type]) occurs on Name;
+synthesized attribute searchFunctionRedeclarationCheckNoCompatible::[Message] occurs on Name;
 synthesized attribute searchFunctionLookupCheck::[Message] occurs on Name;
 synthesized attribute searchFunctionItem::Decorated SearchFunctionItem occurs on Name;
 
@@ -75,6 +76,32 @@ aspect production name
 top::Name ::= n::String
 {
   top.searchFunctionRedeclarationCheck =
+    \ resultType::Type parameterTypes::[Type] ->
+      case lookupInLocalScope(n, top.env.searchFunctions) of
+      | [] -> []
+      | v :: _ -> 
+          if compatibleTypes(resultType.withoutExtensionQualifiers, v.resultType.withoutExtensionQualifiers, false, false) &&
+            length(parameterTypes) == length(v.parameterTypes) &&
+            foldr(
+              \ b1::Boolean b2::Boolean -> b1 && b2,
+              true,
+              zipWith(
+                \ t1::Type t2::Type ->
+                  compatibleTypes(t1.withoutExtensionQualifiers, t2.withoutExtensionQualifiers, false, false),
+                parameterTypes,
+                v.parameterTypes))
+          then []
+          else 
+            let originalPP :: String = showType(v.resultType) ++ "(" ++ implode(", ", map(showType, v.parameterTypes)) ++ ")",
+                herePP :: String = showType(resultType) ++ "(" ++ implode(", ", map(showType, parameterTypes)) ++ ")"
+             in
+                [err(top.location, 
+                  "Redeclaration of " ++ n ++ " with incompatible types. Original (from line " ++
+                  toString(v.sourceLocation.line) ++ ") " ++ originalPP ++ 
+                  " but here it is " ++ herePP)]
+            end
+      end;
+  top.searchFunctionRedeclarationCheckNoCompatible =
     case lookupInLocalScope(n, top.env.searchFunctions) of
     | [] -> []
     | v :: _ -> 

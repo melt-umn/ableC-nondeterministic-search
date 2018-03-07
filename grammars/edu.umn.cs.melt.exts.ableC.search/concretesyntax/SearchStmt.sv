@@ -57,10 +57,20 @@ concrete productions top::SearchStmt_c
   { top.ast = ifThenSearchStmt(cond.ast, tc.ast, location=top.location); }
 | 'if' '(' cond::Expr_c ')' tc::SearchStmt_c 'else' ec::SearchStmt_c 
   { top.ast = ifThenElseSearchStmt(cond.ast, tc.ast, ec.ast, location=top.location); }
-| 'choose' f::Identifier_t '(' ')' ';'
-  { top.ast = chooseSearchStmt(fromId(f), nilExpr(), location=top.location); }
-| 'choose' f::Identifier_t '(' args::ArgumentExprList_c ')' ';'
-  { top.ast = chooseSearchStmt(fromId(f), foldExpr(args.ast), location=top.location); }
+| 'choose' e::Expr_c ';'
+  {
+    local ast::Expr = e.ast;
+    ast.env = emptyEnv();
+    ast.returnType = nothing();
+    top.ast =
+      case ast of
+        callExpr(declRefExpr(f), args) ->
+          chooseSearchStmt(f, args, location=top.location)
+      | eqExpr(lhs, callExpr(declRefExpr(f), args)) ->
+          chooseAssignSearchStmt(lhs, f, args, location=top.location)
+      | _ -> warnSearchStmt([err(e.location, "Invalid choose expression")], location=top.location)
+      end;
+  }
 | 'choose' ds::DeclarationSpecifiers_c d::Declarator_c '=' f::Identifier_t '(' ')' ';'
   {
     ds.givenQualifiers = ds.typeQualifiers;
@@ -69,7 +79,7 @@ concrete productions top::SearchStmt_c
     
     d.givenType = baseTypeExpr();
     
-    top.ast = chooseVarSearchStmt(bt, d.ast, d.declaredIdent, fromId(f), nilExpr(), location=top.location);
+    top.ast = chooseDeclSearchStmt(bt, d.ast, d.declaredIdent, fromId(f), nilExpr(), location=top.location);
   }
 | 'choose' ds::DeclarationSpecifiers_c d::Declarator_c '=' f::Identifier_t '(' args::ArgumentExprList_c ')' ';'
   {
@@ -79,8 +89,12 @@ concrete productions top::SearchStmt_c
     
     d.givenType = baseTypeExpr();
     
-    top.ast = chooseVarSearchStmt(bt, d.ast, d.declaredIdent, fromId(f), foldExpr(args.ast), location=top.location);
+    top.ast = chooseDeclSearchStmt(bt, d.ast, d.declaredIdent, fromId(f), foldExpr(args.ast), location=top.location);
   }
+| 'choose' 'succeed' f::Identifier_t '(' ')' ';'
+  { top.ast = chooseSucceedSearchStmt(fromId(f), nilExpr(), location=top.location); }
+| 'choose' 'succeed' f::Identifier_t '(' args::ArgumentExprList_c ')' ';'
+  { top.ast = chooseSucceedSearchStmt(fromId(f), foldExpr(args.ast), location=top.location); }
 | 'require' c::Expr_c ';'
   { top.ast = requireSearchStmt(c.ast, location=top.location); }
 

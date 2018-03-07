@@ -4,14 +4,21 @@
 #ifndef _TASK_XH
 #define _TASK_XH
 
-typedef struct task_buffer *task_buffer_t;
+typedef struct task_buffer task_buffer_t;
 
-typedef closure<(task_buffer_t) -> void> task_t;
+typedef closure<(task_buffer_t *const) -> void> task_t;
 
 struct task_buffer {
   task_t *tasks;
   size_t size;
   size_t capacity;
+  struct frame {
+    size_t start;
+    size_t end;
+  } currentFrame;
+  struct frame *frames;
+  size_t framesSize;
+  size_t framesCapacity;
   _Bool is_shared;
   pthread_mutex_t mutex;
 };
@@ -20,31 +27,38 @@ struct task_buffer {
  * Initialize a new task buffer.
  * 
  * @param capacity The initial capacity of the buffer.
+ * @param frameStartsCapacity The initial frame capacity of the buffer.
  * @param is_shared true if this task buffer should be thread-safe.
  * @return An initialized task buffer struct.
  */
-struct task_buffer create_task_buffer(size_t capacity, _Bool is_shared);
+task_buffer_t create_task_buffer(size_t capacity, size_t framesCapacity, _Bool is_shared);
 /**
  * Destroy a task buffer.
  * 
  * @param buffer The buffer to destroy.
  */
-void destroy_task_buffer(struct task_buffer buffer);
+void destroy_task_buffer(task_buffer_t buffer);
 
+/**
+ * Open a new frame of tasks to execute in FIFO order.
+ * 
+ * @param p_buffer A pointer to the buffer for which to open a frame.
+ */
+void open_frame(task_buffer_t *const p_buffer);
 /**
  * Place a task in a buffer.
  * 
- * @param buffer The buffer for which to put a task.
+ * @param p_buffer A pointer to the buffer for which to put a task.
  * @param task The task to put.
  */
-void put_task(const task_buffer_t buffer, task_t task);
+void put_task(task_buffer_t *const p_buffer, task_t task);
 /**
  * Get a task from a buffer, if one is available.
  * 
- * @param buffer The buffer for which to get a task.
+ * @param p_buffer A pointer to the buffer for which to get a task.
  * @param task A pointer to a task to be filled in.
  * @return The number of elements initially in the buffer.
  */
-int get_task(const task_buffer_t buffer, task_t *task);
+size_t get_task(task_buffer_t *const p_buffer, task_t *task);
 
 #endif

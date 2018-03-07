@@ -16,7 +16,7 @@ top::Translation ::= s::Stmt
     closureTranslation_i(
       substExpr(
         [stmtSubstitution("__body__", s)],
-        parseExpr(s"({proto_typedef task_buffer_t; lambda (task_buffer_t _schedule) -> (void) { __body__; };})")));
+        parseExpr(s"({proto_typedef task_buffer_t; lambda (task_buffer_t *const _schedule) -> (void) { __body__; };})")));
 }
 
 abstract production closureRefTranslation_i
