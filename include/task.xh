@@ -1,6 +1,8 @@
 #include <stdlib.h>
 #include <pthread.h>
 
+#include <refcount.h>
+
 #ifndef _TASK_XH
 #define _TASK_XH
 

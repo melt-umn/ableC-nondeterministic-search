@@ -7,7 +7,7 @@ imports edu:umn:cs:melt:ableC:abstractsyntax:host;
 imports edu:umn:cs:melt:ableC:abstractsyntax:construction;
 imports edu:umn:cs:melt:ableC:abstractsyntax:substitution;
 imports edu:umn:cs:melt:ableC:abstractsyntax:env;
-imports edu:umn:cs:melt:exts:ableC:closure:abstractsyntax;
+imports edu:umn:cs:melt:exts:ableC:refCountClosure:abstractsyntax;
 
 global builtin::Location = builtinLoc("nondeterministic-search");
 
@@ -18,17 +18,14 @@ top::Decl ::= f::SearchFunctionDecl
   top.pp = f.pp;
 
   local localErrors::[Message] = {-checkSearchXHInclude(f.sourceLocation, top.env) ++-} f.errors;
-  local hostTrans::Decl = f.host;
-  local hostErrorTrans::Decl =
-    defsDecl([valueDef("_search_function_" ++ f.name, errorValueItem())]);
   
   forwards to
     decls(
       foldDecl([
         defsDecl([searchFunctionDef(f.name, searchFunctionItem(f))]),
         if !null(localErrors)
-        then decls(foldDecl([warnDecl(localErrors), hostErrorTrans]))
-        else hostTrans]));
+        then warnDecl(localErrors)
+        else f.host]));
 }
 
 synthesized attribute resultType::Type;
@@ -93,7 +90,7 @@ top::SearchFunctionDecl ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name
               consParameters(
                 parameterDecl(
                   [],
-                  closureTypeExpr(
+                  refCountClosureTypeExpr(
                     nilQualifier(),
                     case result.typerep of
                       builtinType(_, voidType()) -> nilParameters()
@@ -102,7 +99,8 @@ top::SearchFunctionDecl ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name
                         parameterDecl([], bty, new(result), nothingName(), nilAttribute()),
                         nilParameters())
                     end,
-                    typeName(builtinTypeExpr(nilQualifier(), voidType()), baseTypeExpr())),
+                    typeName(builtinTypeExpr(nilQualifier(), voidType()), baseTypeExpr()),
+                    builtin),
                   baseTypeExpr(),
                   justName(name("_continuation", location=builtin)),
                   nilAttribute()),
@@ -181,7 +179,7 @@ top::SearchFunctionDecl ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name bod
             consParameters(
               parameterDecl(
                 [],
-                closureTypeExpr(
+                refCountClosureTypeExpr(
                   nilQualifier(),
                   case result.typerep of
                     builtinType(_, voidType()) -> nilParameters()
@@ -190,7 +188,8 @@ top::SearchFunctionDecl ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name bod
                       parameterDecl([], bty, new(result), nothingName(), nilAttribute()),
                       nilParameters())
                   end,
-                  typeName(builtinTypeExpr(nilQualifier(), voidType()), baseTypeExpr())),
+                  typeName(builtinTypeExpr(nilQualifier(), voidType()), baseTypeExpr()),
+                  builtin),
                 baseTypeExpr(),
                 justName(name("_continuation", location=builtin)),
                 nilAttribute()),
@@ -199,7 +198,9 @@ top::SearchFunctionDecl ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name bod
         name("_search_function_" ++ id.name, location=builtin),
     nilAttribute(),
     nilDecl(),
-    body.translation.asStmt));
+    seqStmt(
+      body.translation.asStmt,
+      parseStmt("_continuation.remove_ref();"))));
   top.errors := bty.errors ++ mty.errors ++ body.errors;
   -- TODO: so long as the original wasn't also a definition
   top.errors <- id.searchFunctionRedeclarationCheck(result.typerep, params.typereps);
@@ -234,7 +235,7 @@ top::Expr ::= driver::Name result::MaybeExpr f::Name a::Exprs
         [head(lookupValue("task_t", top.env)).typerep,
          pointerType(
            nilQualifier(),
-           closureType(nilQualifier(), [], builtinType(nilQualifier(), voidType())))],
+           refCountClosureType(nilQualifier(), [], builtinType(nilQualifier(), voidType())))],
         false),
       nilQualifier());
   local localErrors::[Message] =
@@ -276,5 +277,8 @@ top::Expr ::= driver::Name result::MaybeExpr f::Name a::Exprs
   ${driver.name}(_task, _notify_success);
   *_is_success;})"""));
   
-  forwards to mkErrorCheck(localErrors, fwrd);
+  forwards to
+    if !null(localErrors) || null(lookupValue(s"_search_function_${f.name}", top.env))
+    then errorExpr(localErrors, location=builtin)
+    else fwrd;
 }

@@ -9,5 +9,5 @@ grammar edu:umn:cs:melt:exts:ableC:search;
 exports edu:umn:cs:melt:exts:ableC:search:abstractsyntax;
 exports edu:umn:cs:melt:exts:ableC:search:concretesyntax;
 
--- Also export the closure extension, since its concrete syntax is needed for parsing header definitions
-exports edu:umn:cs:melt:exts:ableC:closure;
+-- Also export the reference-counting closure extension, since its concrete syntax is needed for parsing header definitions
+exports edu:umn:cs:melt:exts:ableC:refCountClosure;

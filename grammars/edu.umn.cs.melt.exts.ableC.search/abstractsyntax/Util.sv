@@ -7,25 +7,25 @@ import edu:umn:cs:melt:ableC:abstractsyntax:construction:parsing as hostParsing;
 parser declsParser :: cst:TranslationUnit_c {
   edu:umn:cs:melt:ableC:concretesyntax;
   edu:umn:cs:melt:ableC:concretesyntax:construction;
-  edu:umn:cs:melt:exts:ableC:closure;
+  edu:umn:cs:melt:exts:ableC:refCountClosure;
 }
 
 parser declParser :: cst:ExternalDeclaration_c {
   edu:umn:cs:melt:ableC:concretesyntax;
   edu:umn:cs:melt:ableC:concretesyntax:construction;
-  edu:umn:cs:melt:exts:ableC:closure;
+  edu:umn:cs:melt:exts:ableC:refCountClosure;
 }
 
 parser stmtParser :: cst:BlockItemList_c {
   edu:umn:cs:melt:ableC:concretesyntax;
   edu:umn:cs:melt:ableC:concretesyntax:construction;
-  edu:umn:cs:melt:exts:ableC:closure;
+  edu:umn:cs:melt:exts:ableC:refCountClosure;
 }
 
 parser exprParser :: cst:Expr_c {
   edu:umn:cs:melt:ableC:concretesyntax;
   edu:umn:cs:melt:ableC:concretesyntax:construction;
-  edu:umn:cs:melt:exts:ableC:closure;
+  edu:umn:cs:melt:exts:ableC:refCountClosure;
 }
 
 -- Wrapper functions to call parsers and return asts

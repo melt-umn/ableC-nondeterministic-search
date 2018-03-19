@@ -12,7 +12,7 @@ search int factor(int n) {
 }
 
 int main() {
-  int result1;
+  int result1 = -1;
   bool success1 = invoke(search_sequential, &result1, factor(5959));
   printf("factor(5959) %s: %d\n", success1? "succeeded" : "failed", result1);
   

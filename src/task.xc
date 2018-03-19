@@ -19,6 +19,11 @@ struct task_buffer create_task_buffer(size_t capacity, size_t framesCapacity, bo
 }
 
 void destroy_task_buffer(task_buffer_t buffer) {
+  task_t task;
+  while (get_task(&buffer, &task)) {
+    task.remove_ref();
+  }
+  
   free(buffer.tasks);
   free(buffer.frames);
 }

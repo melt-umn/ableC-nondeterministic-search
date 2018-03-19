@@ -60,7 +60,11 @@ top::SearchStmt ::= s::SearchStmt
   top.translation =
     stmtTranslation(
       if s.hasContinuation
-      then seqStmt(top.nextTranslation.asClosureRef.fst, directTranslation)
+      then
+        foldStmt([
+          top.nextTranslation.asClosureRef.fst.fst,
+          directTranslation,
+          top.nextTranslation.asClosureRef.fst.snd])
       else seqStmt(directTranslation, top.nextTranslation.asStmt));
   s.nextTranslation =
     if s.hasContinuation
@@ -155,9 +159,10 @@ top::SearchStmt ::= h::SearchStmt t::SearchStmt
   top.translation =
     stmtTranslation(
       foldStmt(
-        top.nextTranslation.asClosureRef.fst ::
+        top.nextTranslation.asClosureRef.fst.fst ::
         openFrameStmt ::
-        map((.asStmtLazy), map((.translation), top.choices))));
+        map((.asStmtLazy), map((.translation), top.choices)) ++
+        [top.nextTranslation.asClosureRef.fst.snd]));
   h.nextTranslation = closureRefTranslation(top.nextTranslation.asClosureRef.snd);
   t.nextTranslation = h.nextTranslation;
   
@@ -177,9 +182,10 @@ top::SearchStmt ::= i::MaybeExpr  c::MaybeExpr  s::MaybeExpr  b::SearchStmt
   top.translation =
     stmtTranslation(
       foldStmt(
-        [top.nextTranslation.asClosureRef.fst,
+        [top.nextTranslation.asClosureRef.fst.fst,
          openFrameStmt,
-         forStmt(i, c, s, b.translation.asStmt)]));
+         forStmt(i, c, s, b.translation.asStmt),
+         top.nextTranslation.asClosureRef.fst.snd]));
   b.nextTranslation = closureRefTranslation(top.nextTranslation.asClosureRef.snd);
   
   top.hasContinuation = true;
@@ -206,9 +212,10 @@ top::SearchStmt ::= i::Decl  c::MaybeExpr  s::MaybeExpr  b::SearchStmt
   top.translation =
     stmtTranslation(
       foldStmt(
-        [top.nextTranslation.asClosureRef.fst,
+        [top.nextTranslation.asClosureRef.fst.fst,
          openFrameStmt,
-         forDeclStmt(i, c, s, b.translation.asStmt)]));
+         forDeclStmt(i, c, s, b.translation.asStmt),
+         top.nextTranslation.asClosureRef.fst.snd]));
   b.nextTranslation = closureRefTranslation(top.nextTranslation.asClosureRef.snd);
   
   top.hasContinuation = true;
@@ -221,6 +228,23 @@ top::SearchStmt ::= i::Decl  c::MaybeExpr  s::MaybeExpr  b::SearchStmt
   i.returnType = nothing();
   c.returnType = nothing();
   s.returnType = nothing();
+}
+
+abstract production finallySearchStmt
+top::SearchStmt ::= s::SearchStmt f::Stmt
+{
+  propagate substituted;
+  top.pp = pp"${s.pp} finally ${f.pp}";
+  top.errors := s.errors ++ f.errors;
+  top.defs := s.defs ++ f.defs;
+  
+  top.translation = stmtTranslation(seqStmt(s.translation.asStmt, f));
+  s.nextTranslation = top.nextTranslation;
+  
+  top.hasContinuation = s.hasContinuation;
+  
+  f.env = addEnv(s.defs, s.env);
+  f.returnType = nothing();
 }
 
 abstract production ifThenSearchStmt
@@ -246,7 +270,11 @@ top::SearchStmt ::= c::Expr t::SearchStmt e::SearchStmt
   top.translation =
     stmtTranslation(
       if top.hasContinuation
-      then seqStmt(top.nextTranslation.asClosureRef.fst, directTranslation)
+      then
+        foldStmt([
+          top.nextTranslation.asClosureRef.fst.fst,
+          directTranslation,
+          top.nextTranslation.asClosureRef.fst.snd])
       else seqStmt(directTranslation, top.nextTranslation.asStmt));
   t.nextTranslation =
     if top.hasContinuation
@@ -378,7 +406,10 @@ top::SearchStmt ::= f::Name a::Exprs
     stmtTranslation(
       substStmt(
         [exprsSubstitution("__args__", a)],
-        parseStmt(s"_search_function_${f.name}(_schedule, _continuation, __args__);")));
+        parseStmt(s"""
+_continuation.add_ref();
+_search_function_${f.name}(_schedule, _continuation, __args__);
+""")));
   top.hasContinuation = true;
   
   a.returnType = nothing();
