@@ -17,7 +17,7 @@ top::Decl ::= f::SearchFunctionDecl
   propagate substituted;
   top.pp = f.pp;
 
-  local localErrors::[Message] = {-checkSearchXHInclude(f.sourceLocation, top.env) ++-} f.errors;
+  local localErrors::[Message] = checkSearchInclude(f.sourceLocation, top.env) ++ f.errors;
   
   forwards to
     decls(
@@ -204,7 +204,6 @@ top::SearchFunctionDecl ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name bod
   top.errors := bty.errors ++ mty.errors ++ body.errors;
   -- TODO: so long as the original wasn't also a definition
   top.errors <- id.searchFunctionRedeclarationCheck(result.typerep, params.typereps);
-  -- TODO: check header include
   top.name = id.name;
   top.resultType = result.typerep;
   top.parameterTypes = params.typereps;
@@ -240,7 +239,7 @@ top::Expr ::= driver::Name result::MaybeExpr f::Name a::Exprs
       nilQualifier());
   local localErrors::[Message] =
     f.searchFunctionLookupCheck ++ a.errors ++ driver.valueLookupCheck ++
-    -- TODO: check header include first
+    checkSearchInclude(top.location, top.env) ++
     (if !typeAssignableTo(expectedDriverType, driver.valueItem.typerep)
      then [err(driver.location, s"Unexpected search driver type (expected ${showType(expectedDriverType)}, got ${showType(driver.valueItem.typerep)})")]
      else []) ++
@@ -281,4 +280,12 @@ top::Expr ::= driver::Name result::MaybeExpr f::Name a::Exprs
     if !null(localErrors) || null(lookupValue(s"_search_function_${f.name}", top.env))
     then errorExpr(localErrors, location=builtin)
     else fwrd;
+}
+
+function checkSearchInclude
+[Message] ::= loc::Location env::Decorated Env
+{
+  return
+    if !null(lookupValue("task_buffer_t", env)) then []
+    else [err(loc, "Nondeterministic search requires <search.xh> to be included.")];
 }
