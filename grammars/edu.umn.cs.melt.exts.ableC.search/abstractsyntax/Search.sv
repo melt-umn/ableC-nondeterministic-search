@@ -221,10 +221,36 @@ top::SearchFunctionDecl ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name bod
 }
 
 abstract production invokeExpr
-top::Expr ::= driver::Name result::MaybeExpr f::Name a::Exprs
+top::Expr ::= driver::Name driverArgs::Exprs result::MaybeExpr f::Name a::Exprs
 {
   propagate substituted;
-  top.pp = pp"invoke(${ppImplode(pp", ", driver.pp :: (if result.isJust then [result.pp] else []) ++ [pp"${f.pp}(${ppImplode(pp", ", a.pps)})"])})";
+  top.pp = pp"invoke(${ppImplode(pp", ", (if driverArgs.count > 0 then pp"${driver.pp}(${ppImplode(pp", ", driverArgs.pps)})" else driver.pp) :: (if result.isJust then [result.pp] else []) ++ [pp"${f.pp}(${ppImplode(pp", ", a.pps)})"])})";
+  
+  driverArgs.returnType = nothing();
+  driverArgs.expectedTypes =
+    case driver.valueItem.typerep of
+      functionType(_, protoFunctionType(parameterTypes, _), _) -> tail(tail(parameterTypes)) 
+    | _ -> []
+    end;
+  driverArgs.argumentPosition = 1;
+  driverArgs.callExpr = decorate declRefExpr(f, location=f.location) with {env = top.env; returnType = nothing();};
+  driverArgs.callVariadic = 
+    case driver.valueItem.typerep of
+      functionType(_, protoFunctionType(_, variadic), _) -> variadic 
+    | _ -> true
+    end;
+  
+  a.returnType = nothing();
+  a.expectedTypes = f.searchFunctionItem.parameterTypes;
+  a.argumentPosition = 1;
+  a.callExpr = decorate declRefExpr(f, location=f.location) with {env = top.env; returnType = nothing();};
+  a.callVariadic = false;
+  
+  local localBaseErrors::[Message] =
+    driver.valueLookupCheck ++ driverArgs.errors ++
+    result.errors ++
+    f.searchFunctionLookupCheck ++ a.errors ++
+    checkSearchInclude(top.location, top.env);
   
   local resType::Type = f.searchFunctionItem.resultType;
   local expectedDriverType::Type =
@@ -235,14 +261,20 @@ top::Expr ::= driver::Name result::MaybeExpr f::Name a::Exprs
          pointerType(
            nilQualifier(),
            refCountClosureType(nilQualifier(), [], builtinType(nilQualifier(), voidType())))],
-        false),
+        true),
       nilQualifier());
-  local localErrors::[Message] =
-    f.searchFunctionLookupCheck ++ a.errors ++ driver.valueLookupCheck ++
-    checkSearchInclude(top.location, top.env) ++
-    (if !typeAssignableTo(expectedDriverType, driver.valueItem.typerep)
+  local isDriverTypeValid::Boolean =
+    case driver.valueItem.typerep of
+      functionType(r, protoFunctionType(p1 :: p2 :: _, _), _) ->
+        compatibleTypes(builtinType(nilQualifier(), voidType()), r, true, true) &&
+        compatibleTypes(head(lookupValue("task_t", top.env)).typerep, p1, true, true) &&
+        isRefCountClosureType(p2)
+    | _ -> false
+    end;
+  local localTypeErrors::[Message] =
+    (if isDriverTypeValid
      then [err(driver.location, s"Unexpected search driver type (expected ${showType(expectedDriverType)}, got ${showType(driver.valueItem.typerep)})")]
-     else []) ++
+     else driverArgs.argumentErrors) ++
     case resType, result of
       builtinType(nilQualifier(), voidType()), justExpr(e) ->
         [err(e.location, s"Unexpected search result (invoked function returns void)")]
@@ -253,12 +285,17 @@ top::Expr ::= driver::Name result::MaybeExpr f::Name a::Exprs
         else []
     | _, nothingExpr() ->
         [err(top.location, s"Expected a search result of type ${showType(pointerType(nilQualifier(), resType))}")]
-    end;
+    end ++
+    a.argumentErrors;
+  
+  local localErrors::[Message] =
+    if !null(localBaseErrors) then localBaseErrors else localTypeErrors;
   local fwrd::Expr =
     substExpr(
       [typedefSubstitution("__res_type__", directTypeExpr(resType)),
        declRefSubstitution("__result__", result.justTheExpr.fromJust),
-       exprsSubstitution("__args__", a)],
+       exprsSubstitution("__args__", a),
+       exprsSubstitution("__driver_args__", driverArgs)],
       parseExpr(s"""
 ({proto_typedef task_t, task_buffer_t, __res_type__;
   _Bool _is_success[1] = {0};
@@ -273,7 +310,7 @@ top::Expr ::= driver::Name result::MaybeExpr f::Name a::Exprs
   task_t _task =
     lambda (task_buffer_t *const _schedule) ->
       (_search_function_${f.name}(_schedule, _success_continuation, __args__));
-  ${driver.name}(_task, _notify_success);
+  ${driver.name}(_task, _notify_success, __driver_args__);
   *_is_success;})"""));
   
   forwards to
