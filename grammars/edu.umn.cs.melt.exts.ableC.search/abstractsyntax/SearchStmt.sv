@@ -184,7 +184,7 @@ top::SearchStmt ::= i::MaybeExpr  c::MaybeExpr  s::MaybeExpr  b::SearchStmt
       foldStmt(
         [top.nextTranslation.asClosureRef.fst.fst,
          openFrameStmt,
-         forStmt(i, c, s, b.translation.asStmt),
+         forStmt(i, c, s, b.translation.asStmtLazy),
          top.nextTranslation.asClosureRef.fst.snd]));
   b.nextTranslation = closureRefTranslation(top.nextTranslation.asClosureRef.snd);
   
@@ -214,7 +214,7 @@ top::SearchStmt ::= i::Decl  c::MaybeExpr  s::MaybeExpr  b::SearchStmt
       foldStmt(
         [top.nextTranslation.asClosureRef.fst.fst,
          openFrameStmt,
-         forDeclStmt(i, c, s, b.translation.asStmt),
+         forDeclStmt(i, c, s, b.translation.asStmtLazy),
          top.nextTranslation.asClosureRef.fst.snd]));
   b.nextTranslation = closureRefTranslation(top.nextTranslation.asClosureRef.snd);
   
