@@ -37,15 +37,16 @@ void open_frame(task_buffer_t *const p_buffer) {
     // If the topmost frame is non-empty, open a new frame
     if (buffer.framesSize == buffer.framesCapacity) {
       buffer.framesCapacity *= 2;
-      buffer.frames = realloc(buffer.frames, buffer.framesCapacity);
+      buffer.frames = realloc(buffer.frames, sizeof(struct frame) * buffer.framesCapacity);
     }
     buffer.frames[buffer.framesSize] = buffer.currentFrame;
     buffer.framesSize++;
     buffer.currentFrame.start = buffer.currentFrame.end;
     *p_buffer = buffer;
     //fprintf(stderr, "open_frame %lu\n", buffer.framesSize);
-  } else 
+  } else {
     //fprintf(stderr, "open_frame current\n");
+  }
   if (buffer.is_shared) {
     pthread_mutex_unlock(&(p_buffer->mutex));
   }
@@ -59,7 +60,7 @@ void put_task(task_buffer_t *const p_buffer, task_t task) {
   //fprintf(stderr, "put_task %s\n", task._fn_name);
   if (buffer.size == buffer.capacity) {
     buffer.capacity *= 2;
-    buffer.tasks = realloc(buffer.tasks, buffer.capacity);
+    buffer.tasks = realloc(buffer.tasks, sizeof(task_t) * buffer.capacity);
   }
   buffer.tasks[buffer.currentFrame.end] = task;
   buffer.size++;
