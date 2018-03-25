@@ -4,7 +4,7 @@ terminal Choice_t  'choice'  lexer classes {Ckeyword};
 terminal Succeed_t 'succeed' lexer classes {Ckeyword};
 terminal Fail_t    'fail'    lexer classes {Ckeyword};
 terminal Choose_t  'choose'  lexer classes {Ckeyword};
-terminal Finally_t 'finally' lexer classes {Ckeyword}, precedence = 2;
+terminal Finally_t 'finally' lexer classes {Ckeyword}, precedence = 2, association = left;
 terminal Require_t 'require' lexer classes {Ckeyword};
 
 -- For 'dangling-finally' resolution
@@ -39,13 +39,17 @@ concrete productions top::SearchStmt_c
   { top.ast = stmtSearchStmt(compoundStmt(foldStmt(b.ast)), location=top.location); }
 | 'succeed' e::Expr_c ';'
   { top.ast = succeedSearchStmt(justExpr(e.ast), location=top.location); }
+| 'succeed' '(' e::Expr_c ')' 'finally' '{' b::BlockItemList_c '}'
+  { top.ast = finallySearchStmt(succeedSearchStmt(justExpr(e.ast), location=top.location), foldStmt(b.ast), location=top.location); }
 | 'succeed' ';'
   { top.ast = succeedSearchStmt(nothingExpr(), location=top.location); }
+| 'succeed' 'finally' '{' b::BlockItemList_c '}'
+  { top.ast = finallySearchStmt(succeedSearchStmt(nothingExpr(), location=top.location), foldStmt(b.ast), location=top.location); }
 | 'fail' ';'
   { top.ast = failSearchStmt(location=top.location); }
 | '{' ss::SearchStmts_c '}'
   { top.ast = compoundSearchStmt(foldSeqSearchStmt(ss.ast), location=top.location); }
--- Optional 'finally' clause can't be factored out, unfourtunately, due to use of precedence
+-- Optional 'finally' clause can't be factored out for these, unfourtunately, due to use of precedence
 | 'choice' '{' ss::SearchStmts_c Prec1RCurly_t
   { top.ast = compoundSearchStmt(foldChoiceSearchStmt(ss.ast), location=top.location); }
 | 'choice' '{' ss::SearchStmts_c Prec1RCurly_t 'finally' '{' b::BlockItemList_c '}'
@@ -70,6 +74,10 @@ concrete productions top::SearchStmt_c
   { top.ast = ifThenSearchStmt(cond.ast, tc.ast, location=top.location); }
 | 'if' '(' cond::Expr_c ')' tc::SearchStmt_c 'else' ec::SearchStmt_c 
   { top.ast = ifThenElseSearchStmt(cond.ast, tc.ast, ec.ast, location=top.location); }
+| 'if' '(' cond::Expr_c ')' tc::SearchStmt_c 'finally' '{' b::BlockItemList_c '}'
+  { top.ast = finallySearchStmt(ifThenSearchStmt(cond.ast, tc.ast, location=top.location), foldStmt(b.ast), location=top.location); }
+| 'if' '(' cond::Expr_c ')' tc::SearchStmt_c 'else' ec::SearchStmt_c 'finally' '{' b::BlockItemList_c '}'
+  { top.ast = finallySearchStmt(ifThenElseSearchStmt(cond.ast, tc.ast, ec.ast, location=top.location), foldStmt(b.ast), location=top.location); }
 | 'choose' e::Expr_c ';'
   {
     local ast::Expr = e.ast;
@@ -81,6 +89,20 @@ concrete productions top::SearchStmt_c
           chooseSearchStmt(f, args, location=top.location)
       | eqExpr(lhs, callExpr(declRefExpr(f), args)) ->
           chooseAssignSearchStmt(lhs, f, args, location=top.location)
+      | _ -> warnSearchStmt([err(e.location, "Invalid choose expression")], location=top.location)
+      end;
+  }
+| 'choose' '(' e::Expr_c ')' 'finally' '{' b::BlockItemList_c '}'
+  {
+    local ast::Expr = e.ast;
+    ast.env = emptyEnv();
+    ast.returnType = nothing();
+    top.ast =
+      case ast of
+        callExpr(declRefExpr(f), args) ->
+          finallySearchStmt(chooseSearchStmt(f, args, location=top.location), foldStmt(b.ast), location=top.location)
+      | eqExpr(lhs, callExpr(declRefExpr(f), args)) ->
+          finallySearchStmt(chooseAssignSearchStmt(lhs, f, args, location=top.location), foldStmt(b.ast), location=top.location)
       | _ -> warnSearchStmt([err(e.location, "Invalid choose expression")], location=top.location)
       end;
   }
@@ -104,12 +126,40 @@ concrete productions top::SearchStmt_c
     
     top.ast = chooseDeclSearchStmt(bt, d.ast, d.declaredIdent, fromId(f), foldExpr(args.ast), location=top.location);
   }
+| 'choose' ds::DeclarationSpecifiers_c d::Declarator_c '=' f::Identifier_t '(' ')' 'finally' '{' b::BlockItemList_c '}'
+  {
+    ds.givenQualifiers = ds.typeQualifiers;
+    local bt :: BaseTypeExpr =
+      figureOutTypeFromSpecifiers(ds.location, ds.typeQualifiers, ds.preTypeSpecifiers, ds.realTypeSpecifiers, ds.mutateTypeSpecifiers);
+    
+    d.givenType = baseTypeExpr();
+    
+    top.ast =
+      finallySearchStmt(chooseDeclSearchStmt(bt, d.ast, d.declaredIdent, fromId(f), nilExpr(), location=top.location), foldStmt(b.ast), location=top.location);
+  }
+| 'choose' ds::DeclarationSpecifiers_c d::Declarator_c '=' f::Identifier_t '(' args::ArgumentExprList_c ')' 'finally' '{' b::BlockItemList_c '}'
+  {
+    ds.givenQualifiers = ds.typeQualifiers;
+    local bt :: BaseTypeExpr =
+      figureOutTypeFromSpecifiers(ds.location, ds.typeQualifiers, ds.preTypeSpecifiers, ds.realTypeSpecifiers, ds.mutateTypeSpecifiers);
+    
+    d.givenType = baseTypeExpr();
+    
+    top.ast =
+      finallySearchStmt(chooseDeclSearchStmt(bt, d.ast, d.declaredIdent, fromId(f), foldExpr(args.ast), location=top.location), foldStmt(b.ast), location=top.location);
+  }
 | 'choose' 'succeed' f::Identifier_t '(' ')' ';'
   { top.ast = chooseSucceedSearchStmt(fromId(f), nilExpr(), location=top.location); }
 | 'choose' 'succeed' f::Identifier_t '(' args::ArgumentExprList_c ')' ';'
   { top.ast = chooseSucceedSearchStmt(fromId(f), foldExpr(args.ast), location=top.location); }
+| 'choose' 'succeed' f::Identifier_t '(' ')' 'finally' '{' b::BlockItemList_c '}'
+  { top.ast = finallySearchStmt(chooseSucceedSearchStmt(fromId(f), nilExpr(), location=top.location), foldStmt(b.ast), location=top.location); }
+| 'choose' 'succeed' f::Identifier_t '(' args::ArgumentExprList_c ')' 'finally' '{' b::BlockItemList_c '}'
+  { top.ast = finallySearchStmt(chooseSucceedSearchStmt(fromId(f), foldExpr(args.ast), location=top.location), foldStmt(b.ast), location=top.location); }
 | 'require' c::Expr_c ';'
   { top.ast = requireSearchStmt(c.ast, location=top.location); }
+| 'require' '(' c::Expr_c ')' 'finally' '{' b::BlockItemList_c '}'
+  { top.ast = finallySearchStmt(requireSearchStmt(c.ast, location=top.location), foldStmt(b.ast), location=top.location); }
 
 -- Mirrors Declaration_c, needed to avoid failing MDA by spilling follow set
 closed nonterminal SearchDeclaration_c with location, ast<Decl>;
