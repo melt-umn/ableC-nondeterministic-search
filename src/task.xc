@@ -4,7 +4,7 @@
 
 #include <task.xh>
 
-struct task_buffer create_task_buffer(size_t capacity, size_t framesCapacity, bool is_shared) {
+struct task_buffer create_task_buffer(size_t capacity, size_t framesCapacity) {
   task_buffer_t result;
   result.tasks = malloc(sizeof(task_t) * capacity);
   result.size = 0;
@@ -13,8 +13,6 @@ struct task_buffer create_task_buffer(size_t capacity, size_t framesCapacity, bo
   result.frames = malloc(sizeof(struct frame) * framesCapacity);
   result.framesSize = 0;
   result.framesCapacity = framesCapacity;
-  result.is_shared = is_shared;
-  result.mutex = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
   return result;
 }
 
@@ -30,9 +28,6 @@ void destroy_task_buffer(task_buffer_t buffer) {
 
 void open_frame(task_buffer_t *const p_buffer) {
   task_buffer_t buffer = *p_buffer;
-  if (buffer.is_shared) {
-    pthread_mutex_lock(&(p_buffer->mutex));
-  }
   if (buffer.currentFrame.start < buffer.currentFrame.end) {
     // If the topmost frame is non-empty, open a new frame
     if (buffer.framesSize == buffer.framesCapacity) {
@@ -47,16 +42,10 @@ void open_frame(task_buffer_t *const p_buffer) {
   } else {
     //fprintf(stderr, "open_frame current\n");
   }
-  if (buffer.is_shared) {
-    pthread_mutex_unlock(&(p_buffer->mutex));
-  }
 }
 
 void put_task(task_buffer_t *const p_buffer, task_t task) {
   task_buffer_t buffer = *p_buffer;
-  if (buffer.is_shared) {
-    pthread_mutex_lock(&(p_buffer->mutex));
-  }
   //fprintf(stderr, "put_task %s\n", task._fn_name);
   if (buffer.size == buffer.capacity) {
     buffer.capacity *= 2;
@@ -66,16 +55,10 @@ void put_task(task_buffer_t *const p_buffer, task_t task) {
   buffer.size++;
   buffer.currentFrame.end++;
   *p_buffer = buffer;
-  if (buffer.is_shared) {
-    pthread_mutex_unlock(&(p_buffer->mutex));
-  }
 }
 
 size_t get_task(task_buffer_t *const p_buffer, task_t *task) {
   task_buffer_t buffer = *p_buffer;
-  if (buffer.is_shared) {
-    pthread_mutex_lock(&(p_buffer->mutex));
-  }
   size_t old_size = buffer.size;
   if (buffer.size > 0) {
     // Invariant: If the buffer is non-empty, the current frame will be non-empty
@@ -91,11 +74,8 @@ size_t get_task(task_buffer_t *const p_buffer, task_t *task) {
   }
   *p_buffer = buffer;
   //if (old_size)
-    //fprintf(stderr, "get_task %s\n", task->_fn_name);
-    //else
-    //fprintf(stderr, "get_task empty\n");
-  if (buffer.is_shared) {
-    pthread_mutex_unlock(&(p_buffer->mutex));
-  }
+  //  fprintf(stderr, "get_task %s\n", task->_fn_name);
+  //else
+  //  fprintf(stderr, "get_task empty\n");
   return old_size;
 }

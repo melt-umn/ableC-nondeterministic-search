@@ -1,5 +1,4 @@
 #include <stdlib.h>
-#include <pthread.h>
 
 #include <refcount.h>
 
@@ -21,8 +20,6 @@ struct task_buffer {
   struct frame *frames;
   size_t framesSize;
   size_t framesCapacity;
-  _Bool is_shared;
-  pthread_mutex_t mutex;
 };
 
 /**
@@ -30,10 +27,9 @@ struct task_buffer {
  * 
  * @param capacity The initial capacity of the buffer.
  * @param frameStartsCapacity The initial frame capacity of the buffer.
- * @param is_shared true if this task buffer should be thread-safe.
  * @return An initialized task buffer struct.
  */
-task_buffer_t create_task_buffer(size_t capacity, size_t framesCapacity, _Bool is_shared);
+task_buffer_t create_task_buffer(size_t capacity, size_t framesCapacity);
 /**
  * Destroy a task buffer.
  * 
