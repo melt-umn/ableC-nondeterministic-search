@@ -188,11 +188,11 @@ top::SearchFunctionDecl ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name bod
   
   bty.returnType = nothing();
   bty.givenRefId = nothing();
-  mty.env = openScopeEnv(addEnv(bty.defs, bty.env));
+  mty.env = openScopeEnv(addEnv(searchFunctionDef(id.name, searchFunctionItem(top)) :: bty.defs, bty.env));
   mty.returnType = nothing();
   mty.baseType = bty.typerep;
   mty.typeModifiersIn = bty.typeModifiers;
-  body.env = addEnv(searchFunctionDef(id.name, searchFunctionItem(top)) :: params.defs, mty.env);
+  body.env = addEnv(params.defs, mty.env);
   body.expectedResultType = result.typerep;
   body.nextTranslation = stmtTranslation(nullStmt());
 }
