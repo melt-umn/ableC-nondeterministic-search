@@ -1,5 +1,4 @@
 #include <search.xh>
-#include <refcount.h>
 #include <stdio.h>
 #include <stdbool.h>
 

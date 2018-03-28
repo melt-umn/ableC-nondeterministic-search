@@ -42,18 +42,18 @@ top::SearchFunctionDecl ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name
     ppConcat([
       text("search"), space(), bty.pp, space(), mty.lpp, id.pp, mty.rpp, semi()]);
   
+  local result::Decorated TypeModifierExpr =
+    case mty of
+    | functionTypeExprWithArgs(result, params, variadic, q) -> result
+    | functionTypeExprWithoutArgs(result, ids, q) -> result
+    | _ -> error("mty should always be a functionTypeExpr")
+    end;
   local params::Decorated Parameters =
     case mty of
     | functionTypeExprWithArgs(result, params, variadic, q) -> params
     | functionTypeExprWithoutArgs(result, ids, q) ->
       -- TODO: Raise an error if ids isn't null
       decorate nilParameters() with {env = top.env; returnType = nothing();}
-    | _ -> error("mty should always be a functionTypeExpr")
-    end;
-  local result::Decorated TypeModifierExpr =
-    case mty of
-    | functionTypeExprWithArgs(result, params, variadic, q) -> result
-    | functionTypeExprWithoutArgs(result, ids, q) -> result
     | _ -> error("mty should always be a functionTypeExpr")
     end;
   local variadic::Boolean =
@@ -69,54 +69,7 @@ top::SearchFunctionDecl ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name
     | _ -> error("mty should always be a functionTypeExpr")
     end;
   
-  top.host =
-    variableDecls(
-      [staticStorageClass()], nilAttribute(),
-      builtinTypeExpr(nilQualifier(), voidType()),
-      consDeclarator(
-        declarator(
-          name("_search_function_" ++ id.name, location=builtin),
-          functionTypeExprWithArgs(
-          baseTypeExpr(),
-          foldr(
-            consParameters,
-            new(params),
-            [parameterDecl(
-               [],
-               typedefTypeExpr(nilQualifier(), name("task_buffer_t", location=builtin)),
-               pointerTypeExpr(
-                 consQualifier(constQualifier(location=builtin), nilQualifier()),
-                 baseTypeExpr()),
-               justName(name("_schedule", location=builtin)),
-               nilAttribute()),
-             parameterDecl(
-               [],
-               refCountClosureTypeExpr(
-                 nilQualifier(),
-                 case result.typerep of
-                   builtinType(_, voidType()) -> nilParameters()
-                 | _ ->
-                   consParameters(
-                     parameterDecl([], bty, new(result), nothingName(), nilAttribute()),
-                     nilParameters())
-                 end,
-                 typeName(builtinTypeExpr(nilQualifier(), voidType()), baseTypeExpr()),
-                 builtin),
-               baseTypeExpr(),
-               justName(name("_continuation", location=builtin)),
-               nilAttribute()),
-             parameterDecl(
-               [],
-               builtinTypeExpr(nilQualifier(), boolType()),
-               pointerTypeExpr(
-                 consQualifier(constQualifier(location=builtin), nilQualifier()),
-                 baseTypeExpr()),
-               justName(name("_cancelled", location=builtin)),
-               nilAttribute())]),
-            variadic, q),
-          nilAttribute(),
-          nothingInitializer()),
-        nilDeclarator()));
+  top.host = makeSearchFunctionProto(id.name, bty, result, params, variadic, q);
   top.errors := bty.errors ++ mty.errors;
   top.errors <- id.searchFunctionRedeclarationCheck(result.typerep, params.typereps);
   top.name = id.name;
@@ -141,18 +94,18 @@ top::SearchFunctionDecl ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name bod
       text("search"), space(), bty.pp, space(), mty.lpp, id.pp, mty.rpp, line(),
       braces(cat(line(), nestlines(2, cat(body.pp, line()))))]);
   
+  local result::Decorated TypeModifierExpr =
+    case mty of
+    | functionTypeExprWithArgs(result, params, variadic, q) -> result
+    | functionTypeExprWithoutArgs(result, ids, q) -> result
+    | _ -> error("mty should always be a functionTypeExpr")
+    end;
   local params::Decorated Parameters =
     case mty of
     | functionTypeExprWithArgs(result, params, variadic, q) -> params
     | functionTypeExprWithoutArgs(result, ids, q) ->
       -- TODO: Raise an error if ids isn't null
       decorate nilParameters() with {env = top.env; returnType = nothing();}
-    | _ -> error("mty should always be a functionTypeExpr")
-    end;
-  local result::Decorated TypeModifierExpr =
-    case mty of
-    | functionTypeExprWithArgs(result, params, variadic, q) -> result
-    | functionTypeExprWithoutArgs(result, ids, q) -> result
     | _ -> error("mty should always be a functionTypeExpr")
     end;
   local variadic::Boolean =
@@ -169,54 +122,62 @@ top::SearchFunctionDecl ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name bod
     end;
   
   top.host =
-    functionDeclaration(
-      functionDecl(
-        [staticStorageClass()], consSpecialSpecifier(inlineQualifier(), nilSpecialSpecifier()),
-        builtinTypeExpr(nilQualifier(), voidType()),
-        functionTypeExprWithArgs(
-          baseTypeExpr(),
-          foldr(
-            consParameters,
-            new(params),
-            [parameterDecl(
-               [],
-               typedefTypeExpr(nilQualifier(), name("task_buffer_t", location=builtin)),
-               pointerTypeExpr(
-                 consQualifier(constQualifier(location=builtin), nilQualifier()),
-                 baseTypeExpr()),
-               justName(name("_schedule", location=builtin)),
-               nilAttribute()),
-             parameterDecl(
-               [],
-               refCountClosureTypeExpr(
-                 nilQualifier(),
-                 case result.typerep of
-                   builtinType(_, voidType()) -> nilParameters()
-                 | _ ->
-                   consParameters(
-                     parameterDecl([], bty, new(result), nothingName(), nilAttribute()),
-                     nilParameters())
-                 end,
-                 typeName(builtinTypeExpr(nilQualifier(), voidType()), baseTypeExpr()),
-                 builtin),
-               baseTypeExpr(),
-               justName(name("_continuation", location=builtin)),
-               nilAttribute()),
-             parameterDecl(
-               [],
-               builtinTypeExpr(nilQualifier(), boolType()),
-               pointerTypeExpr(
-                 consQualifier(constQualifier(location=builtin), nilQualifier()),
-                 baseTypeExpr()),
-               justName(name("_cancelled", location=builtin)),
-               nilAttribute())]),
-          variadic, q),
-        name("_search_function_" ++ id.name, location=builtin),
-    nilAttribute(),
-    nilDecl(),
-    seqStmt(
-      body.translation.asStmt,
-      parseStmt("_continuation.remove_ref();"))));
+    decls(
+      foldDecl([
+        makeSearchFunctionProto(id.name, bty, result, params, variadic, q),
+        functionDeclaration(
+          functionDecl(
+            [staticStorageClass()], consSpecialSpecifier(inlineQualifier(), nilSpecialSpecifier()),
+            builtinTypeExpr(nilQualifier(), voidType()),
+            functionTypeExprWithArgs(
+              baseTypeExpr(),
+              foldr(
+                consParameters,
+                directTypeParameters(params),
+                [parameterDecl(
+                   [],
+                   typedefTypeExpr(nilQualifier(), name("task_buffer_t", location=builtin)),
+                   pointerTypeExpr(
+                     consQualifier(constQualifier(location=builtin), nilQualifier()),
+                     baseTypeExpr()),
+                   justName(name("_schedule", location=builtin)),
+                   nilAttribute()),
+                 parameterDecl(
+                   [],
+                   refCountClosureTypeExpr(
+                     nilQualifier(),
+                     case result.typerep of
+                       builtinType(_, voidType()) -> nilParameters()
+                     | _ ->
+                       consParameters(
+                         parameterDecl(
+                           [],
+                           directTypeExpr(result.typerep),
+                           baseTypeExpr(),
+                           nothingName(),
+                           nilAttribute()),
+                         nilParameters())
+                     end,
+                     typeName(builtinTypeExpr(nilQualifier(), voidType()), baseTypeExpr()),
+                     builtin),
+                   baseTypeExpr(),
+                   justName(name("_continuation", location=builtin)),
+                   nilAttribute()),
+                 parameterDecl(
+                   [],
+                   builtinTypeExpr(nilQualifier(), boolType()),
+                   pointerTypeExpr(
+                     consQualifier(constQualifier(location=builtin), nilQualifier()),
+                     baseTypeExpr()),
+                   justName(name("_cancelled", location=builtin)),
+                   nilAttribute())]),
+              variadic, q),
+            name("_search_function_" ++ id.name, location=builtin),
+        nilAttribute(),
+        nilDecl(),
+        seqStmt(
+          body.translation.asStmt,
+          parseStmt("_continuation.remove_ref();"))))]));
   top.errors := bty.errors ++ mty.errors ++ body.errors;
   -- TODO: so long as the original wasn't also a definition
   top.errors <- id.searchFunctionRedeclarationCheck(result.typerep, params.typereps);
@@ -231,9 +192,75 @@ top::SearchFunctionDecl ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name bod
   mty.returnType = nothing();
   mty.baseType = bty.typerep;
   mty.typeModifiersIn = bty.typeModifiers;
-  body.env = addEnv(params.defs, mty.env);
+  body.env = addEnv(searchFunctionDef(id.name, searchFunctionItem(top)) :: params.defs, mty.env);
   body.expectedResultType = result.typerep;
   body.nextTranslation = stmtTranslation(nullStmt());
+}
+
+function makeSearchFunctionProto
+Decl ::= id::String bty::Decorated BaseTypeExpr result::Decorated TypeModifierExpr params::Decorated Parameters variadic::Boolean q::Qualifiers 
+{
+  return
+    variableDecls(
+      [staticStorageClass()], nilAttribute(),
+      builtinTypeExpr(nilQualifier(), voidType()),
+      consDeclarator(
+        declarator(
+          name("_search_function_" ++ id, location=builtin),
+          functionTypeExprWithArgs(
+            baseTypeExpr(),
+            foldr(
+              consParameters,
+              new(params),
+              [parameterDecl(
+                 [],
+                 typedefTypeExpr(nilQualifier(), name("task_buffer_t", location=builtin)),
+                 pointerTypeExpr(
+                   consQualifier(constQualifier(location=builtin), nilQualifier()),
+                   baseTypeExpr()),
+                 justName(name("_schedule", location=builtin)),
+                 nilAttribute()),
+               parameterDecl(
+                 [],
+                 refCountClosureTypeExpr(
+                   nilQualifier(),
+                   case result.typerep of
+                     builtinType(_, voidType()) -> nilParameters()
+                   | _ ->
+                     consParameters(
+                       parameterDecl([], new(bty), new(result), nothingName(), nilAttribute()),
+                       nilParameters())
+                   end,
+                   typeName(builtinTypeExpr(nilQualifier(), voidType()), baseTypeExpr()),
+                   builtin),
+                 baseTypeExpr(),
+                 justName(name("_continuation", location=builtin)),
+                 nilAttribute()),
+               parameterDecl(
+                 [],
+                 builtinTypeExpr(nilQualifier(), boolType()),
+                 pointerTypeExpr(
+                   consQualifier(constQualifier(location=builtin), nilQualifier()),
+                   baseTypeExpr()),
+                 justName(name("_cancelled", location=builtin)),
+                 nilAttribute())]),
+              variadic, q),
+            nilAttribute(),
+            nothingInitializer()),
+          nilDeclarator()));
+}
+
+function directTypeParameters
+Parameters ::= p::Decorated Parameters
+{
+  return
+    case p of
+      consParameters(parameterDecl(storage, bty, mty, n, attrs), t) ->
+        consParameters(
+          parameterDecl(storage, directTypeExpr(mty.typerep), baseTypeExpr(), n, attrs),
+          directTypeParameters(t))
+    | nilParameters() -> nilParameters()
+    end;
 }
 
 abstract production invokeExpr

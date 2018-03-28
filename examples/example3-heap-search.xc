@@ -3,7 +3,7 @@
 #include <stdbool.h>
 #include <math.h>
 
-search float heap_contains_help(float lower, float upper, float *data, size_t size, unsigned index);
+//search float heap_contains_help(float lower, float upper, float *data, size_t size, unsigned index);
 
 search float heap_contains_help(float lower, float upper, float *data, size_t size, unsigned index) {
   require index < size;
