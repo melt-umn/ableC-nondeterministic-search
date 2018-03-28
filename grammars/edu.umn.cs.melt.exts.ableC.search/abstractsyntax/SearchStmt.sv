@@ -423,6 +423,66 @@ _search_function_${f.name}(_schedule, _continuation, _cancelled, __args__);"""))
   a.callVariadic = false;
 }
 
+abstract production pickSearchStmt
+top::SearchStmt ::= f::Name a::Exprs
+{
+  propagate substituted;
+  top.pp = pp"pick ${f.pp}(${ppImplode(pp", ", a.pps)});";
+  top.seqPPs = [top.pp];
+  top.choicePPs = [top.pp];
+  forwards to
+    pickDeclSearchStmt(
+      directTypeExpr(f.searchFunctionItem.resultType),
+      baseTypeExpr(),
+      name(s"_result_${toString(genInt())}", location=builtin),
+      f, a,
+      location=top.location);
+}
+
+abstract production pickSucceedSearchStmt
+top::SearchStmt ::= f::Name a::Exprs
+{
+  propagate substituted;
+  top.pp = pp"pick succeed ${f.pp}(${ppImplode(pp", ", a.pps)});";
+  top.seqPPs = [top.pp];
+  top.choicePPs = [top.pp];
+  
+  local resultName::Name = name(s"_result_${toString(genInt())}", location=builtin);
+  forwards to
+    seqSearchStmt(
+      pickDeclSearchStmt(
+        directTypeExpr(f.searchFunctionItem.resultType),
+        baseTypeExpr(),
+        resultName,
+        f, a,
+        location=top.location),
+      succeedSearchStmt(justExpr(declRefExpr(resultName, location=builtin)), location=top.location),
+      location=top.location);
+}
+
+abstract production pickAssignSearchStmt
+top::SearchStmt ::= lhs::Expr f::Name a::Exprs
+{
+  propagate substituted;
+  top.pp = pp"pick ${lhs.pp} = ${f.pp}(${ppImplode(pp", ", a.pps)});";
+  top.seqPPs = [top.pp];
+  top.choicePPs = [top.pp];
+  
+  local resultName::Name = name(s"_result_${toString(genInt())}", location=builtin);
+  forwards to
+    seqSearchStmt(
+      pickDeclSearchStmt(
+        directTypeExpr(f.searchFunctionItem.resultType),
+        baseTypeExpr(),
+        resultName,
+        f, a,
+        location=top.location),
+      stmtSearchStmt(
+        exprStmt(eqExpr(lhs, declRefExpr(resultName, location=builtin), location=top.location)),
+        location=top.location),
+      location=top.location);
+}
+
 abstract production pickDeclSearchStmt
 top::SearchStmt ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name f::Name a::Exprs
 {

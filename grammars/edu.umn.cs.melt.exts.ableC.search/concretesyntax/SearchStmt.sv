@@ -157,6 +157,34 @@ concrete productions top::SearchStmt_c
   { top.ast = finallySearchStmt(chooseSucceedSearchStmt(fromId(f), nilExpr(), location=top.location), foldStmt(b.ast), location=top.location); }
 | 'choose' 'succeed' f::Identifier_t '(' args::ArgumentExprList_c ')' 'finally' '{' b::BlockItemList_c '}'
   { top.ast = finallySearchStmt(chooseSucceedSearchStmt(fromId(f), foldExpr(args.ast), location=top.location), foldStmt(b.ast), location=top.location); }
+| 'pick' e::Expr_c ';'
+  {
+    local ast::Expr = e.ast;
+    ast.env = emptyEnv();
+    ast.returnType = nothing();
+    top.ast =
+      case ast of
+        callExpr(declRefExpr(f), args) ->
+          pickSearchStmt(f, args, location=top.location)
+      | eqExpr(lhs, callExpr(declRefExpr(f), args)) ->
+          pickAssignSearchStmt(lhs, f, args, location=top.location)
+      | _ -> warnSearchStmt([err(e.location, "Invalid pick expression")], location=top.location)
+      end;
+  }
+| 'pick' '(' e::Expr_c ')' 'finally' '{' b::BlockItemList_c '}'
+  {
+    local ast::Expr = e.ast;
+    ast.env = emptyEnv();
+    ast.returnType = nothing();
+    top.ast =
+      case ast of
+        callExpr(declRefExpr(f), args) ->
+          finallySearchStmt(pickSearchStmt(f, args, location=top.location), foldStmt(b.ast), location=top.location)
+      | eqExpr(lhs, callExpr(declRefExpr(f), args)) ->
+          finallySearchStmt(pickAssignSearchStmt(lhs, f, args, location=top.location), foldStmt(b.ast), location=top.location)
+      | _ -> warnSearchStmt([err(e.location, "Invalid pick expression")], location=top.location)
+      end;
+  }
 | 'pick' ds::DeclarationSpecifiers_c d::Declarator_c '=' f::Identifier_t '(' ')' ';'
   {
     ds.givenQualifiers = ds.typeQualifiers;
@@ -199,6 +227,14 @@ concrete productions top::SearchStmt_c
     top.ast =
       finallySearchStmt(pickDeclSearchStmt(bt, d.ast, d.declaredIdent, fromId(f), foldExpr(args.ast), location=top.location), foldStmt(b.ast), location=top.location);
   }
+| 'pick' 'succeed' f::Identifier_t '(' ')' ';'
+  { top.ast = pickSucceedSearchStmt(fromId(f), nilExpr(), location=top.location); }
+| 'pick' 'succeed' f::Identifier_t '(' args::ArgumentExprList_c ')' ';'
+  { top.ast = pickSucceedSearchStmt(fromId(f), foldExpr(args.ast), location=top.location); }
+| 'pick' 'succeed' f::Identifier_t '(' ')' 'finally' '{' b::BlockItemList_c '}'
+  { top.ast = finallySearchStmt(pickSucceedSearchStmt(fromId(f), nilExpr(), location=top.location), foldStmt(b.ast), location=top.location); }
+| 'pick' 'succeed' f::Identifier_t '(' args::ArgumentExprList_c ')' 'finally' '{' b::BlockItemList_c '}'
+  { top.ast = finallySearchStmt(pickSucceedSearchStmt(fromId(f), foldExpr(args.ast), location=top.location), foldStmt(b.ast), location=top.location); }
 | 'require' c::Expr_c ';'
   { top.ast = requireSearchStmt(c.ast, location=top.location); }
 | 'require' '(' c::Expr_c ')' 'finally' '{' b::BlockItemList_c '}'
