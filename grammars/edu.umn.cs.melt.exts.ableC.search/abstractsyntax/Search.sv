@@ -77,34 +77,42 @@ top::SearchFunctionDecl ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name
         declarator(
           name("_search_function_" ++ id.name, location=builtin),
           functionTypeExprWithArgs(
-            baseTypeExpr(),
-            consParameters(
-              parameterDecl(
-                [],
-                typedefTypeExpr(nilQualifier(), name("task_buffer_t", location=builtin)),
-                pointerTypeExpr(
-                  consQualifier(constQualifier(location=builtin), nilQualifier()),
-                  baseTypeExpr()),
-                justName(name("_schedule", location=builtin)),
-                nilAttribute()),
-              consParameters(
-                parameterDecl(
-                  [],
-                  refCountClosureTypeExpr(
-                    nilQualifier(),
-                    case result.typerep of
-                      builtinType(_, voidType()) -> nilParameters()
-                    | _ ->
-                      consParameters(
-                        parameterDecl([], bty, new(result), nothingName(), nilAttribute()),
-                        nilParameters())
-                    end,
-                    typeName(builtinTypeExpr(nilQualifier(), voidType()), baseTypeExpr()),
-                    builtin),
-                  baseTypeExpr(),
-                  justName(name("_continuation", location=builtin)),
-                  nilAttribute()),
-                new(params))),
+          baseTypeExpr(),
+          foldr(
+            consParameters,
+            new(params),
+            [parameterDecl(
+               [],
+               typedefTypeExpr(nilQualifier(), name("task_buffer_t", location=builtin)),
+               pointerTypeExpr(
+                 consQualifier(constQualifier(location=builtin), nilQualifier()),
+                 baseTypeExpr()),
+               justName(name("_schedule", location=builtin)),
+               nilAttribute()),
+             parameterDecl(
+               [],
+               refCountClosureTypeExpr(
+                 nilQualifier(),
+                 case result.typerep of
+                   builtinType(_, voidType()) -> nilParameters()
+                 | _ ->
+                   consParameters(
+                     parameterDecl([], bty, new(result), nothingName(), nilAttribute()),
+                     nilParameters())
+                 end,
+                 typeName(builtinTypeExpr(nilQualifier(), voidType()), baseTypeExpr()),
+                 builtin),
+               baseTypeExpr(),
+               justName(name("_continuation", location=builtin)),
+               nilAttribute()),
+             parameterDecl(
+               [],
+               builtinTypeExpr(nilQualifier(), boolType()),
+               pointerTypeExpr(
+                 consQualifier(constQualifier(location=builtin), nilQualifier()),
+                 baseTypeExpr()),
+               justName(name("_cancelled", location=builtin)),
+               nilAttribute())]),
             variadic, q),
           nilAttribute(),
           nothingInitializer()),
@@ -167,33 +175,41 @@ top::SearchFunctionDecl ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name bod
         builtinTypeExpr(nilQualifier(), voidType()),
         functionTypeExprWithArgs(
           baseTypeExpr(),
-          consParameters(
-            parameterDecl(
-              [],
-              typedefTypeExpr(nilQualifier(), name("task_buffer_t", location=builtin)),
-              pointerTypeExpr(
-                consQualifier(constQualifier(location=builtin), nilQualifier()),
-                baseTypeExpr()),
-              justName(name("_schedule", location=builtin)),
-              nilAttribute()),
-            consParameters(
-              parameterDecl(
-                [],
-                refCountClosureTypeExpr(
-                  nilQualifier(),
-                  case result.typerep of
-                    builtinType(_, voidType()) -> nilParameters()
-                  | _ ->
-                    consParameters(
-                      parameterDecl([], bty, new(result), nothingName(), nilAttribute()),
-                      nilParameters())
-                  end,
-                  typeName(builtinTypeExpr(nilQualifier(), voidType()), baseTypeExpr()),
-                  builtin),
-                baseTypeExpr(),
-                justName(name("_continuation", location=builtin)),
-                nilAttribute()),
-              new(params))),
+          foldr(
+            consParameters,
+            new(params),
+            [parameterDecl(
+               [],
+               typedefTypeExpr(nilQualifier(), name("task_buffer_t", location=builtin)),
+               pointerTypeExpr(
+                 consQualifier(constQualifier(location=builtin), nilQualifier()),
+                 baseTypeExpr()),
+               justName(name("_schedule", location=builtin)),
+               nilAttribute()),
+             parameterDecl(
+               [],
+               refCountClosureTypeExpr(
+                 nilQualifier(),
+                 case result.typerep of
+                   builtinType(_, voidType()) -> nilParameters()
+                 | _ ->
+                   consParameters(
+                     parameterDecl([], bty, new(result), nothingName(), nilAttribute()),
+                     nilParameters())
+                 end,
+                 typeName(builtinTypeExpr(nilQualifier(), voidType()), baseTypeExpr()),
+                 builtin),
+               baseTypeExpr(),
+               justName(name("_continuation", location=builtin)),
+               nilAttribute()),
+             parameterDecl(
+               [],
+               builtinTypeExpr(nilQualifier(), boolType()),
+               pointerTypeExpr(
+                 consQualifier(constQualifier(location=builtin), nilQualifier()),
+                 baseTypeExpr()),
+               justName(name("_cancelled", location=builtin)),
+               nilAttribute())]),
           variadic, q),
         name("_search_function_" ++ id.name, location=builtin),
     nilAttribute(),
@@ -309,7 +325,7 @@ top::Expr ::= driver::Name driverArgs::Exprs result::MaybeExpr f::Name a::Exprs
     };
   task_t _task =
     lambda (task_buffer_t *const _schedule) ->
-      (_search_function_${f.name}(_schedule, _success_continuation, __args__));
+      (_search_function_${f.name}(_schedule, _success_continuation, (void*)0, __args__));
   ${driver.name}(_task, _notify_success, __driver_args__);
   *_is_success;})"""));
   

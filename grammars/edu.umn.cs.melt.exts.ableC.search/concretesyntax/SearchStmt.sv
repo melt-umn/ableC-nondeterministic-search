@@ -4,6 +4,7 @@ terminal Choice_t  'choice'  lexer classes {Ckeyword};
 terminal Succeed_t 'succeed' lexer classes {Ckeyword};
 terminal Fail_t    'fail'    lexer classes {Ckeyword};
 terminal Choose_t  'choose'  lexer classes {Ckeyword};
+terminal Pick_t    'pick'    lexer classes {Ckeyword};
 terminal Finally_t 'finally' lexer classes {Ckeyword}, precedence = 2, association = left;
 terminal Require_t 'require' lexer classes {Ckeyword};
 
@@ -156,6 +157,48 @@ concrete productions top::SearchStmt_c
   { top.ast = finallySearchStmt(chooseSucceedSearchStmt(fromId(f), nilExpr(), location=top.location), foldStmt(b.ast), location=top.location); }
 | 'choose' 'succeed' f::Identifier_t '(' args::ArgumentExprList_c ')' 'finally' '{' b::BlockItemList_c '}'
   { top.ast = finallySearchStmt(chooseSucceedSearchStmt(fromId(f), foldExpr(args.ast), location=top.location), foldStmt(b.ast), location=top.location); }
+| 'pick' ds::DeclarationSpecifiers_c d::Declarator_c '=' f::Identifier_t '(' ')' ';'
+  {
+    ds.givenQualifiers = ds.typeQualifiers;
+    local bt :: BaseTypeExpr =
+      figureOutTypeFromSpecifiers(ds.location, ds.typeQualifiers, ds.preTypeSpecifiers, ds.realTypeSpecifiers, ds.mutateTypeSpecifiers);
+    
+    d.givenType = baseTypeExpr();
+    
+    top.ast = pickDeclSearchStmt(bt, d.ast, d.declaredIdent, fromId(f), nilExpr(), location=top.location);
+  }
+| 'pick' ds::DeclarationSpecifiers_c d::Declarator_c '=' f::Identifier_t '(' args::ArgumentExprList_c ')' ';'
+  {
+    ds.givenQualifiers = ds.typeQualifiers;
+    local bt :: BaseTypeExpr =
+      figureOutTypeFromSpecifiers(ds.location, ds.typeQualifiers, ds.preTypeSpecifiers, ds.realTypeSpecifiers, ds.mutateTypeSpecifiers);
+    
+    d.givenType = baseTypeExpr();
+    
+    top.ast = pickDeclSearchStmt(bt, d.ast, d.declaredIdent, fromId(f), foldExpr(args.ast), location=top.location);
+  }
+| 'pick' ds::DeclarationSpecifiers_c d::Declarator_c '=' f::Identifier_t '(' ')' 'finally' '{' b::BlockItemList_c '}'
+  {
+    ds.givenQualifiers = ds.typeQualifiers;
+    local bt :: BaseTypeExpr =
+      figureOutTypeFromSpecifiers(ds.location, ds.typeQualifiers, ds.preTypeSpecifiers, ds.realTypeSpecifiers, ds.mutateTypeSpecifiers);
+    
+    d.givenType = baseTypeExpr();
+    
+    top.ast =
+      finallySearchStmt(pickDeclSearchStmt(bt, d.ast, d.declaredIdent, fromId(f), nilExpr(), location=top.location), foldStmt(b.ast), location=top.location);
+  }
+| 'pick' ds::DeclarationSpecifiers_c d::Declarator_c '=' f::Identifier_t '(' args::ArgumentExprList_c ')' 'finally' '{' b::BlockItemList_c '}'
+  {
+    ds.givenQualifiers = ds.typeQualifiers;
+    local bt :: BaseTypeExpr =
+      figureOutTypeFromSpecifiers(ds.location, ds.typeQualifiers, ds.preTypeSpecifiers, ds.realTypeSpecifiers, ds.mutateTypeSpecifiers);
+    
+    d.givenType = baseTypeExpr();
+    
+    top.ast =
+      finallySearchStmt(pickDeclSearchStmt(bt, d.ast, d.declaredIdent, fromId(f), foldExpr(args.ast), location=top.location), foldStmt(b.ast), location=top.location);
+  }
 | 'require' c::Expr_c ';'
   { top.ast = requireSearchStmt(c.ast, location=top.location); }
 | 'require' '(' c::Expr_c ')' 'finally' '{' b::BlockItemList_c '}'

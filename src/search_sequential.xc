@@ -5,7 +5,8 @@
 #include <search_drivers.xh>
 
 void search_sequential(task_t task, closure<() -> void> *notify_success) {
-  struct task_buffer buffer = create_task_buffer(100, 10);
+  struct task_buffer buffer =
+    create_task_buffer(DEFAULT_TASK_BUFFER_CAPACITY, DEFAULT_TASK_BUFFER_FRAMES_CAPACITY);
   bool success = false, *p_success = &success;
   *notify_success = lambda () -> (void) { *p_success = true; };
 

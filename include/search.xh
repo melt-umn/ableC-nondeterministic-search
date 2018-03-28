@@ -1,5 +1,6 @@
 #include <task.xh>
 #include <search_drivers.xh>
+#include <pick.h>
 
 #include <string.h>
 

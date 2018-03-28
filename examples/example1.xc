@@ -4,7 +4,7 @@
 #include <stdbool.h>
 
 search int foo(int x, int y) {
-  refcount_tag z_rt;
+  refcount_tag_t z_rt;
   int *z_p = refcount_malloc(sizeof(int), &z_rt);
   choice {
     { add_ref(z_rt); *z_p = x; }

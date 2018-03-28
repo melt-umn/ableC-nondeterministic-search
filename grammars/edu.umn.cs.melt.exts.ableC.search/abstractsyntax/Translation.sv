@@ -18,8 +18,10 @@ top::Translation ::= s::Stmt
         [stmtSubstitution("__body__", s)],
         parseExpr(s"""
 ({proto_typedef task_buffer_t;
-  lambda (task_buffer_t *const _schedule) -> (void) { __body__; };})
-""")));
+  lambda (task_buffer_t *const _schedule) -> (void) {
+    if (_cancelled == 0 || !*_cancelled)
+      __body__;
+    };})""")));
 }
 
 abstract production closureRefTranslation_i
@@ -43,8 +45,7 @@ top::Translation ::= e::Expr
 proto_typedef task_t;
 task_t ${tmpId} = __e__;
 ${tmpId}(_schedule);
-${tmpId}.remove_ref();
-"""));
+${tmpId}.remove_ref();"""));
   top.asStmtLazy =
     substStmt([declRefSubstitution("__e__", e)], parseStmt(s"put_task(_schedule, __e__);"));
   top.asClosureRef =

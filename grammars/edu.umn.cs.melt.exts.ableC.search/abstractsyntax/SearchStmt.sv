@@ -357,7 +357,12 @@ _search_function_${f.name}(
   lambda (${case d.typerep of
               builtinType(_, voidType()) -> "void"
             | _ -> s"__result_type__ ${id.name}"
-            end}) -> (void) { __body__; },
+            end}) -> (void) {
+    if (_cancelled == 0 || !*_cancelled) {
+      __body__;
+    }
+  },
+  _cancelled,
   __args__);""")));
   top.hasContinuation = true;
   
@@ -408,10 +413,82 @@ top::SearchStmt ::= f::Name a::Exprs
         [exprsSubstitution("__args__", a)],
         parseStmt(s"""
 _continuation.add_ref();
-_search_function_${f.name}(_schedule, _continuation, __args__);
-""")));
+_search_function_${f.name}(_schedule, _continuation, _cancelled, __args__);""")));
   top.hasContinuation = true;
   
+  a.returnType = nothing();
+  a.expectedTypes = f.searchFunctionItem.parameterTypes;
+  a.argumentPosition = 1;
+  a.callExpr = decorate declRefExpr(f, location=f.location) with {env = top.env; returnType = nothing();};
+  a.callVariadic = false;
+}
+
+abstract production pickDeclSearchStmt
+top::SearchStmt ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name f::Name a::Exprs
+{
+  propagate substituted;
+  top.pp = pp"pick ${bty.pp} ${mty.lpp}${id.pp}${mty.rpp} = ${f.pp}(${ppImplode(pp", ", a.pps)});";
+  top.errors := bty.errors ++ mty.errors ++ a.errors;
+  top.errors <- id.valueRedeclarationCheckNoCompatible;
+  top.errors <- f.searchFunctionLookupCheck;
+  top.errors <-
+    case d.typerep, f.searchFunctionItem.resultType of
+      builtinType(nilQualifier(), voidType()), builtinType(nilQualifier(), voidType()) -> []
+    | expectedType, actualType ->
+      if !typeAssignableTo(expectedType, actualType)
+      then [err(f.location, s"Incompatible type in pick declaration (expected ${showType(expectedType)}, got ${showType(actualType)})")]
+      else []
+    end;
+  top.errors <- if null(f.searchFunctionLookupCheck) then a.argumentErrors else [];
+  
+  top.defs := d.defs;
+  
+  local pickId::String = s"_pick_${toString(genInt())}";
+  top.translation =
+    stmtTranslation(
+      substStmt(
+        [typedefSubstitution("__result_type__", typeModifierTypeExpr(bty, mty)),
+         stmtSubstitution("__body__", top.nextTranslation.asStmt),
+         exprsSubstitution("__args__", a)],
+        parseStmt(s"""
+proto_typedef refcount_tag_t, pick_status_t;
+
+pick_status_t ${pickId};
+//fprintf(stderr, "Allocating ${pickId}\n");
+refcount_tag_t _rt${pickId} = pick_status_init(&${pickId});
+//_rt${pickId}->name = "${pickId}";
+
+_search_function_${f.name}(
+  _schedule,
+  lambda [_rt${pickId}, ...](
+    ${case d.typerep of
+        builtinType(_, voidType()) -> "void"
+      | _ -> s"__result_type__ ${id.name}"
+      end}) -> (void) {
+    if (try_pick(${pickId}) && (_cancelled == 0 || !*_cancelled)) {
+      __body__;
+    }
+  },
+  &(${pickId}->cancelled),
+  __args__);
+
+remove_ref(_rt${pickId});""")));
+  top.hasContinuation = true;
+  
+  production d::Declarator = declarator(id, mty, nilAttribute(), nothingInitializer());
+  d.env = top.env;
+  d.baseType = bty.typerep;
+  d.typeModifiersIn = bty.typeModifiers;
+  d.isTopLevel = false;
+  d.isTypedef = false;
+  d.givenAttributes = nilAttribute();
+  d.returnType = nothing();
+  
+  bty.givenRefId = nothing();
+  bty.returnType = nothing();
+  mty.baseType = bty.typerep;
+  mty.typeModifiersIn = bty.typeModifiers;
+  mty.returnType = nothing();
   a.returnType = nothing();
   a.expectedTypes = f.searchFunctionItem.parameterTypes;
   a.argumentPosition = 1;

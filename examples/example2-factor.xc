@@ -11,7 +11,10 @@ search int factor(int n) {
     choose int a = range((int)ceil(sqrt(n)), n);
     float b = sqrt(a * a - n);
     require b == floor(b);
-    succeed a - (int)floor(b);
+    choice {
+      succeed a - (int)b;
+      succeed a + (int)b;
+    }
   }
 }
 
