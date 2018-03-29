@@ -160,7 +160,6 @@ top::SearchStmt ::= h::SearchStmt t::SearchStmt
     stmtTranslation(
       foldStmt(
         top.nextTranslation.asClosureRef.fst.fst ::
-        openFrameStmt ::
         map((.asStmtLazy), map((.translation), top.choices)) ++
         [top.nextTranslation.asClosureRef.fst.snd]));
   h.nextTranslation = closureRefTranslation(top.nextTranslation.asClosureRef.snd);
@@ -183,7 +182,6 @@ top::SearchStmt ::= i::MaybeExpr  c::MaybeExpr  s::MaybeExpr  b::SearchStmt
     stmtTranslation(
       foldStmt(
         [top.nextTranslation.asClosureRef.fst.fst,
-         openFrameStmt,
          forStmt(i, c, s, b.translation.asStmtLazy),
          top.nextTranslation.asClosureRef.fst.snd]));
   b.nextTranslation = closureRefTranslation(top.nextTranslation.asClosureRef.snd);
@@ -213,7 +211,6 @@ top::SearchStmt ::= i::Decl  c::MaybeExpr  s::MaybeExpr  b::SearchStmt
     stmtTranslation(
       foldStmt(
         [top.nextTranslation.asClosureRef.fst.fst,
-         openFrameStmt,
          forDeclStmt(i, c, s, b.translation.asStmtLazy),
          top.nextTranslation.asClosureRef.fst.snd]));
   b.nextTranslation = closureRefTranslation(top.nextTranslation.asClosureRef.snd);
@@ -571,5 +568,3 @@ top::SearchStmt ::= c::Expr
   
   c.returnType = nothing();
 }
-
-global openFrameStmt::Stmt = parseStmt("open_frame(_schedule);");

@@ -9,6 +9,7 @@ struct task_buffer create_task_buffer(size_t capacity, size_t framesCapacity) {
   result.tasks = malloc(sizeof(task_t) * capacity);
   result.size = 0;
   result.capacity = capacity;
+  result.isFrameOpen = false;
   result.currentFrame = (struct frame){0, 0};
   result.frames = malloc(sizeof(struct frame) * framesCapacity);
   result.framesSize = 0;
@@ -27,9 +28,16 @@ void destroy_task_buffer(task_buffer_t buffer) {
 }
 
 void open_frame(task_buffer_t *const p_buffer) {
+  // Set a flag indicating any new tasks should go in a new frame
+  p_buffer->isFrameOpen = true;
+}
+
+void put_task(task_buffer_t *const p_buffer, task_t task) {
   task_buffer_t buffer = *p_buffer;
-  if (buffer.currentFrame.start < buffer.currentFrame.end) {
-    // If the topmost frame is non-empty, open a new frame
+
+  // Open a new frame, if requested
+  if (buffer.isFrameOpen) {
+    buffer.isFrameOpen = false;
     if (buffer.framesSize == buffer.framesCapacity) {
       buffer.framesCapacity *= 2;
       buffer.frames = realloc(buffer.frames, sizeof(struct frame) * buffer.framesCapacity);
@@ -39,13 +47,9 @@ void open_frame(task_buffer_t *const p_buffer) {
     buffer.currentFrame.start = buffer.currentFrame.end;
     *p_buffer = buffer;
     //fprintf(stderr, "open_frame %lu\n", buffer.framesSize);
-  } else {
-    //fprintf(stderr, "open_frame current\n");
   }
-}
 
-void put_task(task_buffer_t *const p_buffer, task_t task) {
-  task_buffer_t buffer = *p_buffer;
+  // Put the new task in a buffer
   //fprintf(stderr, "put_task %s\n", task._fn_name);
   if (buffer.size == buffer.capacity) {
     buffer.capacity *= 2;
@@ -65,12 +69,14 @@ size_t get_task(task_buffer_t *const p_buffer, task_t *task) {
     *task = buffer.tasks[buffer.currentFrame.start];
     buffer.size--;
     buffer.currentFrame.start++;
+    buffer.isFrameOpen = false;
   }
   if (buffer.size > 0 && buffer.currentFrame.start == buffer.currentFrame.end) {
     //fprintf(stderr, "closing frame %lu\n", buffer.framesSize);
     // Current frame is empty, restore the previous one
     buffer.framesSize--;
     buffer.currentFrame = buffer.frames[buffer.framesSize];
+    buffer.isFrameOpen = true;
   }
   *p_buffer = buffer;
   //if (old_size)

@@ -13,6 +13,7 @@ struct task_buffer {
   task_t *tasks;
   size_t size;
   size_t capacity;
+  _Bool isFrameOpen;
   struct frame {
     size_t start;
     size_t end;

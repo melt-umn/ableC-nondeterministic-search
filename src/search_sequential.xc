@@ -14,6 +14,8 @@ void search_sequential(task_t task, closure<() -> void> *notify_success) {
     //fprintf(stderr, "Evaluating task %s\n", task._fn_name);
     task(&buffer);
     task.remove_ref();
+
+    open_frame(&buffer);
   } while (!success && get_task(&buffer, &task));
 
   //fprintf(stderr, "Destroying buffer\n");
