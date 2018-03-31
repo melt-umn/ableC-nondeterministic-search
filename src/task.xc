@@ -9,7 +9,7 @@ struct task_buffer create_task_buffer(size_t capacity, size_t framesCapacity) {
   result.tasks = malloc(sizeof(task_t) * capacity);
   result.size = 0;
   result.capacity = capacity;
-  result.isFrameOpen = false;
+  result.isFrameOpened = false;
   result.currentFrame = (struct frame){0, 0};
   result.frames = malloc(sizeof(struct frame) * framesCapacity);
   result.framesSize = 0;
@@ -29,15 +29,15 @@ void destroy_task_buffer(task_buffer_t buffer) {
 
 void open_frame(task_buffer_t *const p_buffer) {
   // Set a flag indicating any new tasks should go in a new frame
-  p_buffer->isFrameOpen = true;
+  p_buffer->isFrameOpened = true;
 }
 
 void put_task(task_buffer_t *const p_buffer, task_t task) {
   task_buffer_t buffer = *p_buffer;
 
   // Open a new frame, if requested
-  if (buffer.isFrameOpen) {
-    buffer.isFrameOpen = false;
+  if (buffer.isFrameOpened) {
+    buffer.isFrameOpened = false;
     if (buffer.framesSize == buffer.framesCapacity) {
       buffer.framesCapacity *= 2;
       buffer.frames = realloc(buffer.frames, sizeof(struct frame) * buffer.framesCapacity);
@@ -69,19 +69,24 @@ size_t get_task(task_buffer_t *const p_buffer, task_t *task) {
     *task = buffer.tasks[buffer.currentFrame.start];
     buffer.size--;
     buffer.currentFrame.start++;
-    buffer.isFrameOpen = false;
+    buffer.isFrameOpened = false;
   }
-  if (buffer.size > 0 && buffer.currentFrame.start == buffer.currentFrame.end) {
-    //fprintf(stderr, "closing frame %lu\n", buffer.framesSize);
-    // Current frame is empty, restore the previous one
-    buffer.framesSize--;
-    buffer.currentFrame = buffer.frames[buffer.framesSize];
-    buffer.isFrameOpen = true;
+  if (buffer.size > 0) {
+    if (buffer.currentFrame.start == buffer.currentFrame.end) {
+      //fprintf(stderr, "closing frame %lu\n", buffer.framesSize);
+      // Current frame is empty but buffer is non-empty, restore the previous frame
+      buffer.framesSize--;
+      buffer.currentFrame = buffer.frames[buffer.framesSize];
+      buffer.isFrameOpened = true;
+    }
+  } else {
+    // Buffer is empty, restart from index 0 to save memory
+    buffer.currentFrame = (struct frame){0, 0};
   }
   *p_buffer = buffer;
-  //if (old_size)
-  //  fprintf(stderr, "get_task %s\n", task->_fn_name);
-  //else
-  //  fprintf(stderr, "get_task empty\n");
+  // if (old_size)
+  //   fprintf(stderr, "get_task %d %s\n", old_size, task->_fn_name);
+  // else
+  //   fprintf(stderr, "get_task empty\n");
   return old_size;
 }

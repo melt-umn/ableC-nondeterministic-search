@@ -50,7 +50,7 @@ override JAVAFLAGS+=-Xss6M
 # Flags passed to the C compiler, e.g. to enable various compiler extensions
 override CFLAGS+=-fpic -g
 # Flags passed to the linker when building the shared library
-override LDFLAGS+=-shared -lpthread
+override LDFLAGS+=-shared
 
 all: $(ABLEC_JAR) $(GEN_C_FILES) $(OBJECTS) $(SHARED_LIBRARY) $(STATIC_LIBRARY)
 
