@@ -51,7 +51,7 @@ void put_task(task_buffer_t *const p_buffer, task_t task) {
 
   // Put the new task in a buffer
   //fprintf(stderr, "put_task %s\n", task._fn_name);
-  if (buffer.size == buffer.capacity) {
+  if (buffer.currentFrame.end == buffer.capacity) {
     buffer.capacity *= 2;
     buffer.tasks = realloc(buffer.tasks, sizeof(task_t) * buffer.capacity);
   }
