@@ -11,7 +11,7 @@ build.xml
 generated/
 bin/*.c
 examples/*.c
-test/**/*.c
+tests/**/*.c
 *.i
 *.o
 *.so

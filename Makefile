@@ -36,31 +36,31 @@ MAKEOVERRIDES=ABLEC_BASE=$(abspath $(ABLEC_BASE)) EXTS_BASE=$(abspath $(EXTS_BAS
 all: libs examples analyses test
 
 build:
-	cd examples && $(MAKE) ableC.jar
+	$(MAKE) -C examples ableC.jar
 
 libs:
-	cd src && $(MAKE) -j
+	$(MAKE) -C src
 
 examples:
-	cd examples && $(MAKE) -j
+	$(MAKE) -C examples
 
 analyses: mda mwda
 
 mda:
-	cd modular_analyses && $(MAKE) mda
+	$(MAKE) -C modular_analyses mda
 
 mwda:
-	cd modular_analyses && $(MAKE) mwda
+	$(MAKE) -C modular_analyses mwda
 
 test:
-	cd test && $(MAKE) -kj
+	$(MAKE) -C tests -k
 
 clean:
 	rm -f *~ 
-	cd src && $(MAKE) clean
-	cd examples && $(MAKE) clean
-	cd modular_analyses && $(MAKE) clean
-	cd test && $(MAKE) clean
+	$(MAKE) -C src clean
+	$(MAKE) -C examples clean
+	$(MAKE) -C modular_analyses clean
+	$(MAKE) -C tests clean
 
 .PHONY: all build libs examples analyses mda mwda test clean
 .NOTPARALLEL: # Avoid running multiple Silver builds in parallel
