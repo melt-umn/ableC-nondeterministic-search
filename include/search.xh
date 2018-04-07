@@ -8,7 +8,7 @@
 #define _SEARCH_XH
 
 // Some general utilities
-/*search void require(_Bool b) {
+/*search static inline void require(_Bool b) {
   if (b)
     succeed;
   else
@@ -16,7 +16,7 @@
 }
 */
 
-search int range(int lower, int upper) {
+search static inline int range(int lower, int upper) {
   choice for (int i = lower; i < upper; i++) {
     succeed i;
   }

@@ -37,7 +37,7 @@ nonterminal SearchFunctionDecl with env, substitutions, pp, substituted<SearchFu
 flowtype SearchFunctionDecl = decorate {env}, pp {}, substituted {substitutions}, host {decorate}, errors {decorate}, name {decorate}, resultType {decorate}, parameterTypes {decorate}, sourceLocation {decorate};
 
 abstract production searchFunctionProto
-top::SearchFunctionDecl ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name
+top::SearchFunctionDecl ::= storage::[StorageClass] bty::BaseTypeExpr mty::TypeModifierExpr id::Name
 {
   propagate substituted;
   top.pp =
@@ -71,7 +71,7 @@ top::SearchFunctionDecl ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name
     | _ -> error("mty should always be a functionTypeExpr")
     end;
   
-  top.host = makeSearchFunctionProto(id.name, bty, result, params, variadic, q);
+  top.host = makeSearchFunctionProto(storage, id.name, bty, result, params, variadic, q);
   top.errors := bty.errors ++ mty.errors;
   top.errors <- id.searchFunctionRedeclarationCheck(result.typerep, params.typereps);
   top.name = id.name;
@@ -88,7 +88,7 @@ top::SearchFunctionDecl ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name
 }
 
 abstract production searchFunctionDecl
-top::SearchFunctionDecl ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name body::SearchStmt
+top::SearchFunctionDecl ::= storage::[StorageClass] fnquals::SpecialSpecifiers bty::BaseTypeExpr mty::TypeModifierExpr id::Name body::SearchStmt
 {
   propagate substituted;
   top.pp =
@@ -126,10 +126,10 @@ top::SearchFunctionDecl ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name bod
   top.host =
     decls(
       foldDecl([
-        makeSearchFunctionProto(id.name, bty, result, params, variadic, q),
+        makeSearchFunctionProto(storage, id.name, bty, result, params, variadic, q),
         functionDeclaration(
           functionDecl(
-            [staticStorageClass()], consSpecialSpecifier(inlineQualifier(), nilSpecialSpecifier()),
+            storage, fnquals,
             builtinTypeExpr(nilQualifier(), voidType()),
             functionTypeExprWithArgs(
               baseTypeExpr(),
@@ -200,11 +200,11 @@ top::SearchFunctionDecl ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name bod
 }
 
 function makeSearchFunctionProto
-Decl ::= id::String bty::Decorated BaseTypeExpr result::Decorated TypeModifierExpr params::Decorated Parameters variadic::Boolean q::Qualifiers 
+Decl ::= storage::[StorageClass] id::String bty::Decorated BaseTypeExpr result::Decorated TypeModifierExpr params::Decorated Parameters variadic::Boolean q::Qualifiers 
 {
   return
     variableDecls(
-      [staticStorageClass()], nilAttribute(),
+      storage, nilAttribute(),
       builtinTypeExpr(nilQualifier(), voidType()),
       consDeclarator(
         declarator(
