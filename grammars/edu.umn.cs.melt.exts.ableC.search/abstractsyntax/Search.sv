@@ -18,14 +18,16 @@ top::Decl ::= f::SearchFunctionDecl
   top.pp = f.pp;
 
   local localErrors::[Message] = checkSearchInclude(f.sourceLocation, top.env) ++ f.errors;
+  local hostErrorTrans::Decl =
+    defsDecl([valueDef("_search_function_" ++ f.name, errorValueItem())]);
   
   forwards to
     decls(
-      foldDecl([
-        defsDecl([searchFunctionDef(f.name, searchFunctionItem(f))]),
+      foldDecl(
+        defsDecl([searchFunctionDef(f.name, searchFunctionItem(f))]) ::
         if !null(localErrors)
-        then warnDecl(localErrors)
-        else f.host]));
+        then [warnDecl(localErrors), hostErrorTrans]
+        else [f.host]));
 }
 
 synthesized attribute resultType::Type;
