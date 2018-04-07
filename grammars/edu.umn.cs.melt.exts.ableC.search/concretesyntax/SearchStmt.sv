@@ -36,6 +36,20 @@ concrete productions top::SearchStmt_c
   { top.ast = stmtSearchStmt(declStmt(d.ast), location=top.location); }
 | e::Expr_c ';'
   { top.ast = stmtSearchStmt(exprStmt(e.ast), location=top.location); }
+| 'while' '(' cond::Expr_c ')' '{' b::BlockItemList_c '}'
+    { top.ast = stmtSearchStmt(whileStmt(cond.ast, compoundStmt(foldStmt(b.ast))), location=top.location); }
+| 'do' body::Stmt_c 'while' '(' cond::Expr_c ')'
+    { top.ast = stmtSearchStmt(doStmt(body.ast, cond.ast), location=top.location); }
+-- Slightly odd syntactic construction: ExprStmt is "Expr;" or ";"
+| 'for' '(' init::ExprStmt_c cond::ExprStmt_c iter::Expr_c ')' '{' b::BlockItemList_c '}'
+    { top.ast = stmtSearchStmt(forStmt(init.asMaybeExpr, cond.asMaybeExpr, justExpr(iter.ast), compoundStmt(foldStmt(b.ast))), location=top.location); }
+| 'for' '(' init::ExprStmt_c cond::ExprStmt_c ')' '{' b::BlockItemList_c '}'
+    { top.ast = stmtSearchStmt(forStmt(init.asMaybeExpr, cond.asMaybeExpr, nothingExpr(), compoundStmt(foldStmt(b.ast))), location=top.location); }
+-- Note that Declaration ends with ;
+| 'for' '(' init::Declaration_c cond::ExprStmt_c iter::Expr_c ')' '{' b::BlockItemList_c '}'
+    { top.ast = stmtSearchStmt(forDeclStmt(init.ast, cond.asMaybeExpr, justExpr(iter.ast), compoundStmt(foldStmt(b.ast))), location=top.location); }
+| 'for' '(' init::Declaration_c cond::ExprStmt_c ')' '{' b::BlockItemList_c '}'
+    { top.ast = stmtSearchStmt(forDeclStmt(init.ast, cond.asMaybeExpr, nothingExpr(), compoundStmt(foldStmt(b.ast))), location=top.location); }
 | '{{' b::BlockItemList_c '}' '}'
   { top.ast = stmtSearchStmt(compoundStmt(foldStmt(b.ast)), location=top.location); }
 | 'succeed' e::Expr_c ';'
