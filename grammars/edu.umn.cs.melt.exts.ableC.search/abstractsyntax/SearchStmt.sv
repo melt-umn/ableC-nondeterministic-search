@@ -334,7 +334,7 @@ top::SearchStmt ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name f::Name a::
     case d.typerep, f.searchFunctionItem.resultType of
       builtinType(nilQualifier(), voidType()), builtinType(nilQualifier(), voidType()) -> []
     | expectedType, actualType ->
-      if !typeAssignableTo(expectedType, actualType)
+      if !compatibleTypes(expectedType, actualType, false, false)
       then [err(f.location, s"Incompatible type in choose declaration (expected ${showType(expectedType)}, got ${showType(actualType)})")]
       else []
     end;
@@ -397,7 +397,7 @@ top::SearchStmt ::= f::Name a::Exprs
     case top.expectedResultType, f.searchFunctionItem.resultType of
       builtinType(nilQualifier(), voidType()), builtinType(nilQualifier(), voidType()) -> []
     | expectedType, actualType ->
-      if !typeAssignableTo(expectedType, actualType)
+      if !compatibleTypes(expectedType, actualType, false, false)
       then [err(top.location, s"Incompatible result type (expected ${showType(expectedType)}, got ${showType(actualType)})")]
       else []
     end;
@@ -492,7 +492,7 @@ top::SearchStmt ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name f::Name a::
     case d.typerep, f.searchFunctionItem.resultType of
       builtinType(nilQualifier(), voidType()), builtinType(nilQualifier(), voidType()) -> []
     | expectedType, actualType ->
-      if !typeAssignableTo(expectedType, actualType)
+      if !compatibleTypes(expectedType, actualType, false, false)
       then [err(f.location, s"Incompatible type in pick declaration (expected ${showType(expectedType)}, got ${showType(actualType)})")]
       else []
     end;
