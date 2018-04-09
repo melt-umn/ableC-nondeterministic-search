@@ -69,7 +69,6 @@ size_t get_task(task_buffer_t *const p_buffer, task_t *task) {
     *task = buffer.tasks[buffer.currentFrame.start];
     buffer.size--;
     buffer.currentFrame.start++;
-    buffer.isFrameOpened = false;
   }
   if (buffer.size > 0) {
     if (buffer.currentFrame.start == buffer.currentFrame.end) {
