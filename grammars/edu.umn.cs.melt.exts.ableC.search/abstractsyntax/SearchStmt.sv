@@ -103,10 +103,13 @@ top::SearchStmt ::= me::MaybeExpr
   
   top.defs := [];
   top.translation =
-    stmtTranslation(
-      substStmt(
-        [declRefSubstitution("__result__", me.justTheExpr.fromJust)],
-        parseStmt(s"_continuation(${if me.isJust then "__result__" else ""});")));
+    if me.isJust
+    then
+      stmtTranslation(
+        substStmt(
+          [declRefSubstitution("__result__", me.justTheExpr.fromJust)],
+          parseStmt(s"_continuation(_schedule, __result__);")))
+    else closureRefTranslation(name("_continuation", location=builtin));
   top.hasContinuation = true;
   
   me.returnType = nothing();
@@ -351,9 +354,10 @@ top::SearchStmt ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name f::Name a::
         parseStmt(s"""
 _search_function_${f.name}(
   _schedule,
-  lambda (${case d.typerep of
-              builtinType(_, voidType()) -> "void"
-            | _ -> s"__result_type__ ${id.name}"
+  lambda (task_buffer_t *const _schedule
+          ${case d.typerep of
+              builtinType(_, voidType()) -> ""
+            | _ -> s", __result_type__ ${id.name}"
             end}) -> (void) {
     if (_cancelled == 0 || !*_cancelled) {
       __body__;
@@ -518,9 +522,10 @@ refcount_tag_t _rt${pickId} = pick_status_init(&${pickId});
 _search_function_${f.name}(
   _schedule,
   lambda [_rt${pickId}, ...](
+    task_buffer_t *const _schedule
     ${case d.typerep of
-        builtinType(_, voidType()) -> "void"
-      | _ -> s"__result_type__ ${id.name}"
+        builtinType(_, voidType()) -> ""
+      | _ -> s", __result_type__ ${id.name}"
       end}) -> (void) {
     if (try_pick(${pickId}) && (_cancelled == 0 || !*_cancelled)) {
       __body__;

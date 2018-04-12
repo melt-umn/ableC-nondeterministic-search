@@ -148,18 +148,26 @@ top::SearchFunctionDecl ::= storage::[StorageClass] fnquals::SpecialSpecifiers b
                    [],
                    refCountClosureTypeExpr(
                      nilQualifier(),
-                     case result.typerep of
-                       builtinType(_, voidType()) -> nilParameters()
-                     | _ ->
-                       consParameters(
-                         parameterDecl(
-                           [],
-                           directTypeExpr(result.typerep),
-                           baseTypeExpr(),
-                           nothingName(),
-                           nilAttribute()),
-                         nilParameters())
-                     end,
+                     consParameters(
+                       parameterDecl(
+                         [],
+                         typedefTypeExpr(nilQualifier(), name("task_buffer_t", location=builtin)),
+                         pointerTypeExpr(
+                           consQualifier(constQualifier(location=builtin), nilQualifier()),
+                           baseTypeExpr()),
+                         nothingName(), nilAttribute()),
+                       case result.typerep of
+                         builtinType(_, voidType()) -> nilParameters()
+                       | _ ->
+                         consParameters(
+                           parameterDecl(
+                             [],
+                             directTypeExpr(result.typerep),
+                             baseTypeExpr(),
+                             nothingName(),
+                             nilAttribute()),
+                           nilParameters())
+                       end),
                      typeName(builtinTypeExpr(nilQualifier(), voidType()), baseTypeExpr()),
                      builtin),
                    baseTypeExpr(),
@@ -226,13 +234,21 @@ Decl ::= storage::[StorageClass] id::String bty::Decorated BaseTypeExpr result::
                  [],
                  refCountClosureTypeExpr(
                    nilQualifier(),
-                   case result.typerep of
-                     builtinType(_, voidType()) -> nilParameters()
-                   | _ ->
-                     consParameters(
-                       parameterDecl([], new(bty), new(result), nothingName(), nilAttribute()),
-                       nilParameters())
-                   end,
+                   consParameters(
+                     parameterDecl(
+                       [],
+                       typedefTypeExpr(nilQualifier(), name("task_buffer_t", location=builtin)),
+                       pointerTypeExpr(
+                         consQualifier(constQualifier(location=builtin), nilQualifier()),
+                         baseTypeExpr()),
+                       nothingName(), nilAttribute()),
+                     case result.typerep of
+                       builtinType(_, voidType()) -> nilParameters()
+                     | _ ->
+                       consParameters(
+                         parameterDecl([], new(bty), new(result), nothingName(), nilAttribute()),
+                         nilParameters())
+                     end),
                    typeName(builtinTypeExpr(nilQualifier(), voidType()), baseTypeExpr()),
                    builtin),
                  baseTypeExpr(),
@@ -346,8 +362,9 @@ top::Expr ::= driver::Name driverArgs::Exprs result::MaybeExpr f::Name a::Exprs
   _Bool _is_success[1] = {0};
   ${if result.isJust then "__res_type__ *_result = __result__;" else ""}
   closure<() -> void> _notify_success[1];
-  closure<(${if result.isJust then "__res_type__" else "void"}) -> void> _success_continuation =
-    lambda (${if result.isJust then "__res_type__ result" else "void"}) -> (void) {
+  closure<(task_buffer_t *const${if result.isJust then ", __res_type__" else ""}) -> void> _success_continuation =
+    lambda (task_buffer_t *const _schedule
+            ${if result.isJust then ", __res_type__ result" else ""}) -> (void) {
       *_is_success = 1;
       ${if result.isJust then "*_result = result;" else ""}
       (*_notify_success)();
