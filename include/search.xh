@@ -16,7 +16,13 @@
 }
 */
 
-search static inline int range(int lower, int upper) {
+search static inline signed range(signed lower, signed upper) {
+  choice for (int i = lower; i < upper; i++) {
+    succeed i;
+  }
+}
+
+search static inline unsigned urange(unsigned lower, unsigned upper) {
   choice for (int i = lower; i < upper; i++) {
     succeed i;
   }
