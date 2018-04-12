@@ -34,6 +34,8 @@ void *worker(void *args) {
       // Evaluate a task if one exists
       task(&buffer);
       task.remove_ref();
+      
+      open_frame(&buffer);
     }
   } while (!*p_success && !failure);
 
@@ -79,8 +81,8 @@ void search_parallel_spawn(task_t task, closure<() -> void> *notify_success, siz
     }
     for (int i = 0; i < num_threads; i++) {
       pthread_join(threads[i], NULL);
-      printf("Joined thread %d\n", i);
     }
+    pthread_mutex_destroy(&params.buffer_mutex);
   }
 
  done:

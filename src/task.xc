@@ -46,11 +46,11 @@ void put_task(task_buffer_t *const p_buffer, task_t task) {
     buffer.framesSize++;
     buffer.currentFrame.start = buffer.currentFrame.end;
     *p_buffer = buffer;
-    //fprintf(stderr, "open_frame %lu\n", buffer.framesSize);
+    //fprintf(stderr, "open_frame %p %lu\n", p_buffer, buffer.framesSize);
   }
 
   // Put the new task in a buffer
-  //fprintf(stderr, "put_task %s\n", task._fn_name);
+  //fprintf(stderr, "put_task %p %s\n", p_buffer, task._fn_name);
   if (buffer.currentFrame.end == buffer.capacity) {
     buffer.capacity *= 2;
     buffer.tasks = realloc(buffer.tasks, sizeof(task_t) * buffer.capacity);
@@ -72,7 +72,7 @@ size_t get_task(task_buffer_t *const p_buffer, task_t *task) {
   }
   if (buffer.size > 0) {
     if (buffer.currentFrame.start == buffer.currentFrame.end) {
-      //fprintf(stderr, "closing frame %lu\n", buffer.framesSize);
+      //fprintf(stderr, "closing frame %p %lu\n", p_buffer, buffer.framesSize);
       // Current frame is empty but buffer is non-empty, restore the previous frame
       buffer.framesSize--;
       buffer.currentFrame = buffer.frames[buffer.framesSize];
@@ -84,8 +84,8 @@ size_t get_task(task_buffer_t *const p_buffer, task_t *task) {
   }
   *p_buffer = buffer;
   // if (old_size)
-  //   fprintf(stderr, "get_task %d %s\n", old_size, task->_fn_name);
+  //   fprintf(stderr, "get_task %p %lu %s\n", p_buffer, old_size, task->_fn_name);
   // else
-  //   fprintf(stderr, "get_task empty\n");
+  //   fprintf(stderr, "get_task %p empty\n", p_buffer);
   return old_size;
 }
