@@ -196,9 +196,21 @@ top::SearchFunctionDecl ::= storage::[StorageClass] fnquals::SpecialSpecifiers b
   top.parameterTypes = params.typereps;
   top.sourceLocation = id.location;
   
+  production attribute implicitDefs::[Def] with ++;
+  implicitDefs := [];
+  
+  local nameValueItem::ValueItem =
+    builtinValueItem(
+      pointerType(
+        nilQualifier(),
+        builtinType(
+          consQualifier(constQualifier(location=builtinLoc("host")), nilQualifier()),
+          signedType(charType()))));
+  implicitDefs <- map(valueDef(_, nameValueItem), ["__func__", "__FUNCTION__", "__PRETTY_FUNCTION__"]);
+  
   bty.returnType = nothing();
   bty.givenRefId = nothing();
-  mty.env = openScopeEnv(addEnv(searchFunctionDef(id.name, searchFunctionItem(top)) :: bty.defs, bty.env));
+  mty.env = addEnv(implicitDefs, openScopeEnv(addEnv(searchFunctionDef(id.name, searchFunctionItem(top)) :: bty.defs, bty.env)));
   mty.returnType = nothing();
   mty.baseType = bty.typerep;
   mty.typeModifiersIn = bty.typeModifiers;
