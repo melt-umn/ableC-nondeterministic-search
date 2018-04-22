@@ -5,7 +5,7 @@ terminal Succeed_t 'succeed' lexer classes {Ckeyword};
 terminal Fail_t    'fail'    lexer classes {Ckeyword};
 terminal Choose_t  'choose'  lexer classes {Ckeyword};
 terminal Pick_t    'pick'    lexer classes {Ckeyword};
-terminal Finally_t 'finally' lexer classes {Ckeyword}, precedence = 2, association = left;
+terminal Finally_t 'finally' lexer classes {Ckeyword}, precedence = 3, association = left;
 terminal Require_t 'require' lexer classes {Ckeyword};
 
 -- For 'dangling-finally' resolution
