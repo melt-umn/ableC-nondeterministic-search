@@ -12,7 +12,7 @@ ABLEC_BASE?=../../../ableC
 EXTS_BASE?=../../../extensions
 
 # The jar file to built
-ABLEC_JAR=$(BIN_DIR)/ableC.jar
+ABLEC_JAR=ableC.jar
 # The artifact specification grammar to compile
 ARTIFACT=artifact
 # All directories containing grammars that may be included
@@ -48,9 +48,17 @@ override CPPFLAGS+=$(addprefix -I,$(INCLUDE_DIRS))
 override JAVAFLAGS+=-Xss6M
 
 # Flags passed to the C compiler, e.g. to enable various compiler extensions
-override CFLAGS+=-fpic -g
+override CFLAGS+=-fpic
 # Flags passed to the linker when building the shared library
 override LDFLAGS+=-shared
+
+rel: CFLAGS+=-O3 -DNDEBUG
+rel: LDFLAGS+=-O3
+rel: all
+
+dbg: CFLAGS+=-O0 -g -DDEBUG
+dbg: LDFLAGS+=-g
+dbg: all
 
 all: $(ABLEC_JAR) $(GEN_C_FILES) $(OBJECTS) $(SHARED_LIBRARY) $(STATIC_LIBRARY)
 
@@ -84,4 +92,7 @@ $(GENERATED_DIR): | $(BIN_DIR)
 clean:
 	rm -rf *~ *.copperdump.html build.xml $(BIN_DIR) $(LIB_DIR)
 
-.PHONY: all clean
+realclean: clean
+	rm -rf *.jar
+
+.PHONY: rel dbg all clean realclean
