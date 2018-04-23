@@ -17,13 +17,25 @@
 */
 
 search static inline signed range(signed lower, signed upper) {
-  choice for (int i = lower; i < upper; i++) {
+  choice for (signed i = lower; i < upper; i++) {
     succeed i;
   }
 }
 
 search static inline unsigned urange(unsigned lower, unsigned upper) {
-  choice for (int i = lower; i < upper; i++) {
+  choice for (unsigned i = lower; i < upper; i++) {
+    succeed i;
+  }
+}
+
+search static inline signed long lrange(signed long lower, signed long upper) {
+  choice for (signed long i = lower; i < upper; i++) {
+    succeed i;
+  }
+}
+
+search static inline unsigned long ulrange(unsigned long lower, unsigned long upper) {
+  choice for (unsigned long i = lower; i < upper; i++) {
     succeed i;
   }
 }
