@@ -83,6 +83,7 @@ top::SearchStmt ::= s::Stmt
   top.translation = stmtTranslation(seqStmt(s, top.nextTranslation.asStmt));
   top.hasContinuation = false;
   
+  s.env = addEnv(s.functionDefs, top.env);
   s.returnType = nothing();
 }
 

@@ -42,6 +42,11 @@ top::Env ::= e::Decorated Env
 {
   top.searchFunctions = globalScope(e.searchFunctions);
 }
+aspect production nonGlobalEnv_i
+top::Env ::= e::Decorated Env
+{
+  top.searchFunctions = nonGlobalScope(e.searchFunctions);
+}
 
 aspect production nilDefs
 top::Defs ::=
@@ -150,6 +155,11 @@ aspect production globalEnv_i
 top::Env ::= e::Decorated Env
 {
   top.asCaptured = globalEnv(e.asCaptured);
+}
+aspect production nonGlobalEnv_i
+top::Env ::= e::Decorated Env
+{
+  top.asCaptured = nonGlobalEnv(e.asCaptured);
 }
 
 attribute asCaptured<[Def]> occurs on Defs;
