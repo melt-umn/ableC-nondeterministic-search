@@ -47,6 +47,7 @@ void *steal_worker(void *args) {
   }
   
   task_t task;
+  bool valid_task = true;
   do {
     // Attempt to get a task
     if (!get_task(&buffer, &task)) {
@@ -58,18 +59,20 @@ void *steal_worker(void *args) {
         if (atomic_add_fetch(p_num_waiting, 1) == num_threads) {
           // All other threads are also waiting for a task
           *p_done = true;
+          valid_task = false;
+        } else {
+          pthread_cond_wait(p_cond, p_mutex);
+          atomic_sub_fetch(p_num_waiting, 1);
         }
-        pthread_cond_wait(p_cond, p_mutex);
-        atomic_sub_fetch(p_num_waiting, 1);
       }
-      if (!*p_done) {
+      if (valid_task) {
         task = *p_task;
         *p_has_task = false;
       }
       
       pthread_mutex_unlock(p_mutex);
     }
-    if (!*p_done) {
+    if (valid_task) {
       // Evaluate the task
       task(&buffer);
       task.remove_ref();
@@ -157,6 +160,9 @@ void search_parallel_steal(task_t task, closure<() -> void> *notify_success, uns
     for (unsigned i = 0; i < num_threads; i++) {
       pthread_mutex_destroy(&thread_info[i].mutex);
       pthread_cond_destroy(&thread_info[i].cond);
+      if (thread_info[i].has_task) {
+        thread_info[i].task.remove_ref();
+      }
     }
   }
 
