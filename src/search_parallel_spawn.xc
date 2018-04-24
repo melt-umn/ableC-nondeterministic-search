@@ -11,7 +11,7 @@ struct params {
   bool *p_success;
 };
 
-void *worker(void *args) {
+void *spawn_worker(void *args) {
   // Copy data from parameter struct
   pthread_mutex_t *global_buffer_mutex = &((struct params *)args)->buffer_mutex;
   task_buffer_t *global_buffer = ((struct params *)args)->buffer;
@@ -53,7 +53,7 @@ void search_parallel_spawn(task_t task, closure<() -> void> *notify_success, siz
     buffer2 = create_task_buffer(DEFAULT_TASK_BUFFER_CAPACITY, 0);
   put_task(&buffer1, task);
 
-  for (int i = 0; i < initial_depth; i++) {
+  for (size_t i = 0; i < initial_depth; i++) {
     // Evaluate all tasks in buffer1, dispatching to buffer2
     task_t task;
     while (get_task(&buffer1, &task)) {
@@ -76,10 +76,10 @@ void search_parallel_spawn(task_t task, closure<() -> void> *notify_success, siz
     // Launch worker threads to evaluate tasks until finished
     struct params params = {PTHREAD_MUTEX_INITIALIZER, &buffer1, p_success};
     pthread_t threads[num_threads];
-    for (int i = 0; i < num_threads; i++) {
-      pthread_create(&threads[i], NULL, worker, &params);
+    for (unsigned i = 0; i < num_threads; i++) {
+      pthread_create(&threads[i], NULL, spawn_worker, &params);
     }
-    for (int i = 0; i < num_threads; i++) {
+    for (unsigned i = 0; i < num_threads; i++) {
       pthread_join(threads[i], NULL);
     }
     pthread_mutex_destroy(&params.buffer_mutex);
