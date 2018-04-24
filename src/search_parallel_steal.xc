@@ -34,10 +34,6 @@ void *steal_worker(void *args) {
   pthread_cond_t *p_cond = &thread_info[index].cond;
   bool *p_has_task = &thread_info[index].has_task;
   task_t *p_task = &thread_info[index].task;
-  pthread_mutex_t *p_next_mutex = &thread_info[(index + 1) % num_threads].mutex;
-  pthread_cond_t *p_next_cond = &thread_info[(index + 1) % num_threads].cond;
-  bool *p_next_has_task = &thread_info[(index + 1) % num_threads].has_task;
-  task_t *p_next_task = &thread_info[(index + 1) % num_threads].task;
   unsigned *p_num_waiting = info.p_num_waiting;
   bool *p_done = info.p_done;
   
@@ -55,7 +51,7 @@ void *steal_worker(void *args) {
     // Attempt to get a task
     if (!get_task(&buffer, &task)) {
       // This thread's buffer is empty
-      // Attempt to get a task provided by the previous thread
+      // Attempt to get a task provided by another thread
       pthread_mutex_lock(p_mutex);
       
       while (!*p_has_task && !*p_done) {
@@ -80,19 +76,23 @@ void *steal_worker(void *args) {
       
       open_frame(&buffer);
       
-      if (buffer.size > 1 && !*p_next_has_task) {
-        // Give the next thread a task to steal
-        pthread_mutex_lock(p_next_mutex);
-        get_task(&buffer, p_next_task);
-        *p_next_has_task = true;
-        pthread_cond_signal(p_next_cond);
-        pthread_mutex_unlock(p_next_mutex);
+      // Check if any other threads are in need of a task
+      for (unsigned i = 0; i < num_threads && buffer.size > 1 && *p_num_waiting > 0; i++) {
+        unsigned other_index = (index + i) % num_threads;
+        if (index != other_index && !thread_info[other_index].has_task) {
+          // Give the other thread a task to steal
+          pthread_mutex_lock(&thread_info[other_index].mutex);
+          get_task(&buffer, &thread_info[other_index].task);
+          thread_info[other_index].has_task = true;
+          pthread_cond_signal(&thread_info[other_index].cond);
+          pthread_mutex_unlock(&thread_info[other_index].mutex);
+        }
       }
     }
   } while (!*p_done);
 
-  // Wake up next thread if it is still waiting
-  pthread_cond_signal(p_next_cond);
+  // Wake up next thread, so none are left waiting on exit
+  pthread_cond_signal(&thread_info[(index + 1) % num_threads].cond);
 
   // Cleanup
   destroy_task_buffer(buffer);
