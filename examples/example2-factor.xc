@@ -6,7 +6,10 @@
 // Factorization using Fermat’s method
 search int factor(int n) {
   if (n % 2 == 0) {
-    succeed 2;
+    choice {
+      succeed 2;
+      choose succeed factor(n / 2);
+    }
   } else {
     choose int a = range((int)ceil(sqrt(n)), n);
     float b = sqrt(a * a - n);
