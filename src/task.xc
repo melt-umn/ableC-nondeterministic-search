@@ -34,21 +34,21 @@ void open_frame(task_buffer_t *const p_buffer) {
 
 void put_task(task_buffer_t *const p_buffer, task_t task) {
   task_buffer_t buffer = *p_buffer;
-
+  
   // Open a new frame, if requested
   if (buffer.isFrameOpened) {
     buffer.isFrameOpened = false;
     if (buffer.framesSize == buffer.framesCapacity) {
+      buffer.framesCapacity++;
       buffer.framesCapacity *= 2;
       buffer.frames = realloc(buffer.frames, sizeof(struct frame) * buffer.framesCapacity);
     }
     buffer.frames[buffer.framesSize] = buffer.currentFrame;
     buffer.framesSize++;
     buffer.currentFrame.start = buffer.currentFrame.end;
-    *p_buffer = buffer;
     //fprintf(stderr, "open_frame %p %lu\n", p_buffer, buffer.framesSize);
   }
-
+  
   // Put the new task in a buffer
   //fprintf(stderr, "put_task %p %s\n", p_buffer, task._fn_name);
   if (buffer.currentFrame.end == buffer.capacity) {

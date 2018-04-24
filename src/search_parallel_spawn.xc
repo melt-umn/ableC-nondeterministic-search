@@ -20,7 +20,7 @@ void *spawn_worker(void *args) {
   task_buffer_t buffer =
     create_task_buffer(DEFAULT_TASK_BUFFER_CAPACITY, DEFAULT_TASK_BUFFER_FRAMES_CAPACITY);
   bool failure = false;
-
+  
   // Evaluate tasks until success or failure
   task_t task;
   do {
@@ -38,7 +38,7 @@ void *spawn_worker(void *args) {
       open_frame(&buffer);
     }
   } while (!*p_success && !failure);
-
+  
   // Delete the local buffer
   destroy_task_buffer(buffer);
 }
@@ -46,13 +46,13 @@ void *spawn_worker(void *args) {
 void search_parallel_spawn(task_t task, closure<() -> void> *notify_success, size_t initial_depth, unsigned num_threads) {
   bool success = false, *p_success = &success;
   *notify_success = lambda () -> (void) { *p_success = true; };
-
+  
   // Expand all tasks initial_depth number of times using 2 buffers
   task_buffer_t
     buffer1 = create_task_buffer(DEFAULT_TASK_BUFFER_CAPACITY, 0),
     buffer2 = create_task_buffer(DEFAULT_TASK_BUFFER_CAPACITY, 0);
   put_task(&buffer1, task);
-
+  
   for (size_t i = 0; i < initial_depth; i++) {
     // Evaluate all tasks in buffer1, dispatching to buffer2
     task_t task;
@@ -65,13 +65,13 @@ void search_parallel_spawn(task_t task, closure<() -> void> *notify_success, siz
         goto done;
       }
     }
-
+    
     // Swap the buffers
     task_buffer_t tmp = buffer1;
     buffer1 = buffer2;
     buffer2 = tmp;
   }
-
+  
   {
     // Launch worker threads to evaluate tasks until finished
     struct params params = {PTHREAD_MUTEX_INITIALIZER, &buffer1, p_success};
@@ -84,7 +84,7 @@ void search_parallel_spawn(task_t task, closure<() -> void> *notify_success, siz
     }
     pthread_mutex_destroy(&params.buffer_mutex);
   }
-
+  
  done:
   // Cleanup
   destroy_task_buffer(buffer1);

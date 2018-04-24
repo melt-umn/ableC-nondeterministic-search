@@ -57,7 +57,7 @@ test:
 
 clean:
 	rm -f *~ 
-	$(MAKE) -C src clean
+	$(MAKE) -C src realclean
 	$(MAKE) -C examples clean
 	$(MAKE) -C modular_analyses clean
 	$(MAKE) -C tests clean
