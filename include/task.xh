@@ -45,19 +45,27 @@ void destroy_task_buffer(task_buffer_t buffer);
  */
 void open_frame(task_buffer_t *const p_buffer);
 /**
- * Place a task in a buffer.
+ * Place a task in the current frame of a buffer.
  * 
  * @param p_buffer A pointer to the buffer for which to put a task.
  * @param task The task to put.
  */
 void put_task(task_buffer_t *const p_buffer, task_t task);
 /**
- * Get a task from a buffer, if one is available.
+ * Get the next task from the current frame of a buffer, if one is available.
  * 
  * @param p_buffer A pointer to the buffer for which to get a task.
  * @param task A pointer to a task to be filled in.
  * @return The number of elements initially in the buffer.
  */
 size_t get_task(task_buffer_t *const p_buffer, task_t *task);
+/**
+ * Get a next task from the last frame of a buffer, if one is available.
+ * 
+ * @param p_buffer A pointer to the buffer for which to get a task.
+ * @param task A pointer to a task to be filled in.
+ * @return The number of elements initially in the buffer.
+ */
+size_t get_back_task(task_buffer_t *const p_buffer, task_t *task);
 
 #endif

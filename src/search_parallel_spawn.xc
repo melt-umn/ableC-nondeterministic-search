@@ -9,7 +9,7 @@
 struct params {
   size_t depth;
   pthread_mutex_t global_buffer_mutex;
-  task_buffer_t *p_global_buffer;
+  task_buffer_t global_buffer;
   bool *p_success;
 };
 
@@ -17,7 +17,7 @@ void *spawn_worker(void *args) {
   // Copy data from parameter struct
   size_t depth = ((struct params *)args)->depth;
   pthread_mutex_t *p_global_buffer_mutex = &((struct params *)args)->global_buffer_mutex;
-  task_buffer_t *p_global_buffer = ((struct params *)args)->p_global_buffer;
+  task_buffer_t *p_global_buffer = &((struct params *)args)->global_buffer;
   bool *p_success = ((struct params *)args)->p_success;
   
   size_t buffers_size = 0, buffers_capacity = 0;
@@ -76,7 +76,7 @@ void search_parallel_spawn(task_t task, closure<() -> void> *notify_success,
   task_buffer_t buffer = expand(task, global_depth);
   
   // Launch worker threads to evaluate tasks until finished
-  struct params params = {thread_depth, PTHREAD_MUTEX_INITIALIZER, &buffer, p_success};
+  struct params params = {thread_depth, PTHREAD_MUTEX_INITIALIZER, buffer, p_success};
   pthread_t threads[num_threads];
   for (unsigned i = 0; i < num_threads; i++) {
     pthread_create(&threads[i], NULL, spawn_worker, &params);
@@ -87,6 +87,6 @@ void search_parallel_spawn(task_t task, closure<() -> void> *notify_success,
   
   // Cleanup
   pthread_mutex_destroy(&params.global_buffer_mutex);
-  destroy_task_buffer(buffer);
+  destroy_task_buffer(params.global_buffer);
   (*notify_success).remove_ref();
 }
