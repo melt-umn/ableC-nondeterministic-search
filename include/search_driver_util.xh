@@ -1,0 +1,13 @@
+#include <task.xh>
+#include <stdlib.h>
+
+#ifndef _SEARCH_DRIVER_UTIL_XH
+#define _SEARCH_DRIVER_UTIL_XH
+
+#define DEFAULT_TASK_BUFFER_CAPACITY 100
+#define DEFAULT_TASK_BUFFER_FRAMES_CAPACITY 10
+
+_Bool search_step(task_buffer_t *const p_buffer);
+task_buffer_t expand(task_t task, size_t depth);
+
+#endif

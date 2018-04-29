@@ -3,23 +3,43 @@
 #include <stdio.h>
 
 #include <search_drivers.xh>
+#include <search_driver_util.xh>
 
-void search_sequential(task_t task, closure<() -> void> *notify_success) {
-  task_buffer_t buffer =
-    create_task_buffer(DEFAULT_TASK_BUFFER_CAPACITY, DEFAULT_TASK_BUFFER_FRAMES_CAPACITY);
+void search_sequential(task_t task, closure<() -> void> *notify_success, size_t depth) {
   bool success = false, *p_success = &success;
   *notify_success = lambda () -> (void) { *p_success = true; };
 
-  do {
-    //fprintf(stderr, "Evaluating task %s\n", task._fn_name);
-    task(&buffer);
-    task.remove_ref();
+  // Initially expand the task into a new buffer
+  task_buffer_t buffer = expand(task, depth);
+  size_t buffers_size = buffer.size;
+  
+  if (!success) {
+    // Initialize new buffers each containing one element from the expanded buffer
+    task_buffer_t buffers[buffers_size];
+    for (size_t i = 0; i < buffers_size; i++) {
+      buffers[i] =
+        create_task_buffer(DEFAULT_TASK_BUFFER_CAPACITY, DEFAULT_TASK_BUFFER_FRAMES_CAPACITY);
+      task_t task;
+      get_task(&buffer, &task);
+      put_task(buffers + i, task);
+    }
+    
+    bool failure;
+    do {
+      // Perform a step on each buffer
+      failure = true;
+      for (size_t i = 0; i < buffers_size; i++) {
+        failure &= search_step(buffers + i) == 0;
+      }
+    } while (!success && !failure);
 
-    open_frame(&buffer);
-  } while (!success && get_task(&buffer, &task));
+    // Cleanup
+    for (size_t i = 0; i < buffers_size; i++) {
+      destroy_task_buffer(buffers[i]);
+    }
+  }
 
-  //fprintf(stderr, "Destroying buffer\n");
+  // Cleanup
   destroy_task_buffer(buffer);
-  //fprintf(stderr, "Removing notify ref\n");
   (*notify_success).remove_ref();
 }

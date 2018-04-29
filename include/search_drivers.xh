@@ -7,8 +7,12 @@
 #define DEFAULT_TASK_BUFFER_CAPACITY 100
 #define DEFAULT_TASK_BUFFER_FRAMES_CAPACITY 10
 
-void search_sequential(task_t task, closure<() -> void> *notify_success);
-void search_parallel_spawn(task_t task, closure<() -> void> *notify_success, size_t initial_depth, unsigned num_threads);
-void search_parallel_steal(task_t task, closure<() -> void> *notify_success, unsigned num_threads);
+void search_sequential_dfs(task_t task, closure<() -> void> *notify_success);
+void search_sequential(task_t task, closure<() -> void> *notify_success,
+                       size_t depth);
+void search_parallel_spawn(task_t task, closure<() -> void> *notify_success,
+                           size_t global_depth, size_t thread_depth, unsigned num_threads);
+void search_parallel_steal(task_t task, closure<() -> void> *notify_success,
+                           size_t global_depth, size_t thread_depth, unsigned num_threads);
 
 #endif
