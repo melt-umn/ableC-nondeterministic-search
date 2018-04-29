@@ -35,7 +35,7 @@ task_buffer_t expand(task_t task, size_t depth) {
     buffer1 = buffer2;
     buffer2 = tmp;
   }
-
+  
   // Cleanup
   destroy_task_buffer(buffer2);
   return buffer1;
