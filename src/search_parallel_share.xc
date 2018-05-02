@@ -10,7 +10,7 @@
 #include <search_driver_util.xh>
 
 struct params {
-  struct shared_params {
+  struct common_params {
     struct params *thread_params;
     unsigned num_threads;
     size_t depth;
@@ -18,7 +18,7 @@ struct params {
     task_buffer_t global_buffer;
     unsigned num_waiting;
     bool *p_done;
-  } *shared_params;
+  } *common_params;
   unsigned index;
   pthread_mutex_t mutex;
   pthread_cond_t cond;
@@ -26,16 +26,16 @@ struct params {
   task_t task;
 };
 
-void *steal_worker(void *args) {
+void *share_worker(void *args) {
   // Copy data from parameter struct
-  struct shared_params *shared_params = ((struct params *)args)->shared_params;
-  struct params *thread_params = shared_params->thread_params;
-  unsigned num_threads = shared_params->num_threads;
-  unsigned depth = shared_params->depth;
-  pthread_mutex_t *p_global_buffer_mutex = &shared_params->global_buffer_mutex;
-  task_buffer_t *p_global_buffer = &shared_params->global_buffer;
-  unsigned *p_num_waiting = &shared_params->num_waiting;
-  bool *p_done = shared_params->p_done;
+  struct common_params *common_params = ((struct params *)args)->common_params;
+  struct params *thread_params = common_params->thread_params;
+  unsigned num_threads = common_params->num_threads;
+  unsigned depth = common_params->depth;
+  pthread_mutex_t *p_global_buffer_mutex = &common_params->global_buffer_mutex;
+  task_buffer_t *p_global_buffer = &common_params->global_buffer;
+  unsigned *p_num_waiting = &common_params->num_waiting;
+  bool *p_done = common_params->p_done;
   unsigned index = ((struct params *)args)->index;
   pthread_mutex_t *p_mutex = &((struct params *)args)->mutex;
   pthread_cond_t *p_cond = &((struct params *)args)->cond;
@@ -64,7 +64,7 @@ void *steal_worker(void *args) {
              i++, max_buffer_size--) {
           unsigned other_index = (index + i) % num_threads;
           if (!thread_params[other_index].has_task) {
-            // Give the other thread a task to steal from the largest buffer
+            // Give the other thread a task from the largest buffer
             pthread_mutex_lock(&thread_params[other_index].mutex);
             get_back_task(buffers + max_buffer_index, &thread_params[other_index].task);
             thread_params[other_index].has_task = true;
@@ -121,7 +121,7 @@ void *steal_worker(void *args) {
           }
           if (valid_task) {
             // Copy the provided task into the first buffer
-            printf("Thread %d stealing task\n", index);
+            //printf("Thread %d got task\n", index);
             if (buffers_capacity == 0) {
               // Buffers have not yet been allocated, allocate a buffer
               buffers = malloc(sizeof(task_buffer_t));
@@ -151,7 +151,7 @@ void *steal_worker(void *args) {
   free(buffers);
 }
 
-void search_parallel_steal(task_t task, closure<() -> void> *notify_success,
+void search_parallel_share(task_t task, closure<() -> void> *notify_success,
                            size_t global_depth, size_t thread_depth, unsigned num_threads) {
   bool done = false, *p_done = &done;
   *notify_success = lambda () -> (void) { *p_done = true; };
@@ -161,17 +161,17 @@ void search_parallel_steal(task_t task, closure<() -> void> *notify_success,
   
   // Initialize worker thread parameters
   struct params params[num_threads];
-  struct shared_params shared_params =
+  struct common_params common_params =
     {params, num_threads, thread_depth, PTHREAD_MUTEX_INITIALIZER, buffer, 0, p_done};
   for (unsigned i = 0; i < num_threads; i++) {
     params[i] =
-      (struct params){&shared_params, i, PTHREAD_MUTEX_INITIALIZER, PTHREAD_COND_INITIALIZER, false};
+      (struct params){&common_params, i, PTHREAD_MUTEX_INITIALIZER, PTHREAD_COND_INITIALIZER, false};
   }
   
   // Launch worker threads to evaluate tasks until finished
   pthread_t threads[num_threads];
   for (unsigned i = 0; i < num_threads; i++) {
-    pthread_create(&threads[i], NULL, steal_worker, params + i);
+    pthread_create(&threads[i], NULL, share_worker, params + i);
   }
   for (unsigned i = 0; i < num_threads; i++) {
     pthread_join(threads[i], NULL);
@@ -186,7 +186,7 @@ void search_parallel_steal(task_t task, closure<() -> void> *notify_success,
     }
   }
   
-  pthread_mutex_destroy(&shared_params.global_buffer_mutex);
-  destroy_task_buffer(shared_params.global_buffer);
+  pthread_mutex_destroy(&common_params.global_buffer_mutex);
+  destroy_task_buffer(common_params.global_buffer);
   (*notify_success).remove_ref();
 }
