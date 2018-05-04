@@ -28,7 +28,7 @@ int main() {
   printf("foo(20, 0) %s: %llu\n", success1? "succeeded" : "failed", result1);
   
   unsigned long long result2 = -1;
-  bool success2 = invoke(search_parallel_steal(3, 6, 8), &result2, foo(20, 0));
+  bool success2 = invoke(search_parallel_share(3, 6, 8), &result2, foo(20, 0));
   printf("foo(20, 0) %s: %llu\n", success2? "succeeded" : "failed", result2);
 
   return !(success1 && success2);
