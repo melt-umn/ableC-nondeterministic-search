@@ -58,7 +58,7 @@ all: $(ABLEC_JAR) $(C_FILES) $(OBJECTS) $(EXECUTABLES) $(TESTS)
 libs: $(LIBS)
 
 $(LIBS):
-	cd $(@:libs=src) && $(MAKE)
+	$(MAKE) -C $(@:libs=src)
 
 $(ABLEC_JAR): $(GRAMMAR_SOURCES)
 	touch $(wildcard $(ARTIFACT)/*.sv)
