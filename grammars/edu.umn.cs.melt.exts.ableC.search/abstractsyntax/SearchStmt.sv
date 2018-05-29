@@ -105,11 +105,7 @@ top::SearchStmt ::= me::MaybeExpr
   top.defs := [];
   top.translation =
     if me.isJust
-    then
-      stmtTranslation(
-        substStmt(
-          [declRefSubstitution("__result__", me.justTheExpr.fromJust)],
-          parseStmt(s"_continuation(_schedule, __result__);")))
+    then stmtTranslation(ableC_Stmt { _continuation(_schedule, $Expr{me.justTheExpr.fromJust}); })
     else closureRefTranslation(name("_continuation", location=builtin));
   top.hasContinuation = true;
   
@@ -348,24 +344,23 @@ top::SearchStmt ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name f::Name a::
   
   top.translation =
     stmtTranslation(
-      substStmt(
-        [typedefSubstitution("__result_type__", typeModifierTypeExpr(bty, mty)),
-         stmtSubstitution("__body__", top.nextTranslation.asStmt),
-         exprsSubstitution("__args__", a)],
-        parseStmt(s"""
-_search_function_${f.name}(
-  _schedule,
-  lambda (task_buffer_t *const _schedule
-          ${case d.typerep of
-              builtinType(_, voidType()) -> ""
-            | _ -> s", __result_type__ ${id.name}"
-            end}) -> (void) {
-    if (_cancelled == 0 || !*_cancelled) {
-      __body__;
-    }
-  },
-  _cancelled,
-  __args__);""")));
+      ableC_Stmt {
+        $name{"_search_function_" ++ f.name}(
+          _schedule,
+          refcount::lambda (
+            task_buffer_t *const _schedule,
+            $Parameters{
+              case d.typerep of
+                builtinType(_, voidType()) -> nilParameters()
+              | _ -> ableC_Parameters { $BaseTypeExpr{typeModifierTypeExpr(bty, mty)} $Name{id} }
+              end}) -> (void) {
+            if (_cancelled == 0 || !*_cancelled) {
+              $Stmt{top.nextTranslation.asStmt}
+            }
+          },
+          _cancelled,
+          $Exprs{a});
+      });
   top.hasContinuation = true;
   
   production d::Declarator = declarator(id, mty, nilAttribute(), nothingInitializer());
@@ -411,11 +406,10 @@ top::SearchStmt ::= f::Name a::Exprs
   
   top.translation =
     stmtTranslation(
-      substStmt(
-        [exprsSubstitution("__args__", a)],
-        parseStmt(s"""
-_continuation.add_ref();
-_search_function_${f.name}(_schedule, _continuation, _cancelled, __args__);""")));
+      ableC_Stmt {
+        _continuation.add_ref();
+        $name{"_search_function_" ++ f.name}(_schedule, _continuation, _cancelled, $Exprs{a});
+      });
   top.hasContinuation = true;
   
   a.returnType = nothing();
@@ -508,34 +502,32 @@ top::SearchStmt ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name f::Name a::
   local pickId::String = s"_pick_${toString(genInt())}";
   top.translation =
     stmtTranslation(
-      substStmt(
-        [typedefSubstitution("__result_type__", typeModifierTypeExpr(bty, mty)),
-         stmtSubstitution("__body__", top.nextTranslation.asStmt),
-         exprsSubstitution("__args__", a)],
-        parseStmt(s"""
-proto_typedef refcount_tag_t, pick_status_t;
-
-pick_status_t ${pickId};
-//fprintf(stderr, "Allocating ${pickId}\n");
-refcount_tag_t _rt${pickId} = pick_status_init(&${pickId});
-//_rt${pickId}->name = "${pickId}";
-
-_search_function_${f.name}(
-  _schedule,
-  lambda [_rt${pickId}, ...](
-    task_buffer_t *const _schedule
-    ${case d.typerep of
-        builtinType(_, voidType()) -> ""
-      | _ -> s", __result_type__ ${id.name}"
-      end}) -> (void) {
-    if (try_pick(${pickId}) && (_cancelled == 0 || !*_cancelled)) {
-      __body__;
-    }
-  },
-  &(${pickId}->cancelled),
-  __args__);
-
-remove_ref(_rt${pickId});""")));
+      ableC_Stmt {
+        proto_typedef refcount_tag_t, pick_status_t;
+        
+        pick_status_t $name{pickId};
+        //fprintf(stderr, "Allocating ${pickId}\n");
+        refcount_tag_t $name{"_rt" ++ pickId} = pick_status_init(&$name{pickId});
+        //_rt${pickId}->name = "${pickId}";
+        
+        $name{"_search_function_" ++ f.name}(
+          _schedule,
+          refcount::lambda [$name{"_rt" ++ pickId}, ...](
+            task_buffer_t *const _schedule,
+                    $Parameters{
+                      case d.typerep of
+                        builtinType(_, voidType()) -> nilParameters()
+                      | _ -> ableC_Parameters { $BaseTypeExpr{typeModifierTypeExpr(bty, mty)} $Name{id} }
+                      end}) -> (void) {
+            if (try_pick($name{pickId}) && (_cancelled == 0 || !*_cancelled)) {
+              $Stmt{top.nextTranslation.asStmt}
+            }
+          },
+          &($name{pickId}->cancelled),
+          $Exprs{a});
+        
+        remove_ref($name{"_rt" ++ pickId});
+      });
   top.hasContinuation = true;
   
   production d::Declarator = declarator(id, mty, nilAttribute(), nothingInitializer());

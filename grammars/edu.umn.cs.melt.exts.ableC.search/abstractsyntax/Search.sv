@@ -4,6 +4,7 @@ imports silver:langutil;
 imports silver:langutil:pp;
 
 imports edu:umn:cs:melt:ableC:abstractsyntax:host;
+imports edu:umn:cs:melt:ableC:abstractsyntax:overloadable;
 imports edu:umn:cs:melt:ableC:abstractsyntax:construction;
 imports edu:umn:cs:melt:ableC:abstractsyntax:substitution;
 imports edu:umn:cs:melt:ableC:abstractsyntax:env;
@@ -125,69 +126,24 @@ top::SearchFunctionDecl ::= storage::[StorageClass] fnquals::SpecialSpecifiers b
   
   top.host =
     decls(
-      foldDecl([
-        makeSearchFunctionProto(storage, id.name, bty, result, params, variadic, q),
-        functionDeclaration(
-          functionDecl(
-            storage, fnquals,
-            builtinTypeExpr(nilQualifier(), voidType()),
-            functionTypeExprWithArgs(
-              baseTypeExpr(),
-              foldr(
-                consParameters,
-                directTypeParameters(params),
-                [parameterDecl(
-                   [],
-                   typedefTypeExpr(nilQualifier(), name("task_buffer_t", location=builtin)),
-                   pointerTypeExpr(
-                     consQualifier(constQualifier(location=builtin), nilQualifier()),
-                     baseTypeExpr()),
-                   justName(name("_schedule", location=builtin)),
-                   nilAttribute()),
-                 parameterDecl(
-                   [],
-                   refCountClosureTypeExpr(
-                     nilQualifier(),
-                     consParameters(
-                       parameterDecl(
-                         [],
-                         typedefTypeExpr(nilQualifier(), name("task_buffer_t", location=builtin)),
-                         pointerTypeExpr(
-                           consQualifier(constQualifier(location=builtin), nilQualifier()),
-                           baseTypeExpr()),
-                         nothingName(), nilAttribute()),
-                       case result.typerep of
-                         builtinType(_, voidType()) -> nilParameters()
-                       | _ ->
-                         consParameters(
-                           parameterDecl(
-                             [],
-                             directTypeExpr(result.typerep),
-                             baseTypeExpr(),
-                             nothingName(),
-                             nilAttribute()),
-                           nilParameters())
-                       end),
-                     typeName(builtinTypeExpr(nilQualifier(), voidType()), baseTypeExpr()),
-                     builtin),
-                   baseTypeExpr(),
-                   justName(name("_continuation", location=builtin)),
-                   nilAttribute()),
-                 parameterDecl(
-                   [],
-                   builtinTypeExpr(nilQualifier(), boolType()),
-                   pointerTypeExpr(
-                     consQualifier(constQualifier(location=builtin), nilQualifier()),
-                     baseTypeExpr()),
-                   justName(name("_cancelled", location=builtin)),
-                   nilAttribute())]),
-              variadic, q),
-            name("_search_function_" ++ id.name, location=builtin),
-        nilAttribute(),
-        nilDecl(),
-        seqStmt(
-          body.translation.asStmt,
-          parseStmt("_continuation.remove_ref();"))))]));
+      ableC_Decls {
+        proto_typedef task_buffer_t;
+        $Decl{makeSearchFunctionProto(storage, id.name, bty, result, params, variadic, q)}
+        $StorageClasses{storage} void $name{"_search_function_" ++ id.name}(
+          task_buffer_t *const _schedule,
+          refcount::closure<(
+            task_buffer_t *const,
+            $Parameters{
+              case result.typerep of
+                builtinType(_, voidType()) -> nilParameters()
+              | _ -> ableC_Parameters { $directTypeExpr{result.typerep} }
+              end}) -> void> _continuation,
+          _Bool *_cancelled,
+          $Parameters{directTypeParameters(params)}) {
+            $Stmt{body.translation.asStmt}
+            _continuation.remove_ref();
+          }
+      });
   top.errors := bty.errors ++ mty.errors ++ body.errors;
   -- TODO: so long as the original wasn't also a definition
   top.errors <- id.searchFunctionRedeclarationCheck(result.typerep, params.typereps);
@@ -223,61 +179,23 @@ function makeSearchFunctionProto
 Decl ::= storage::[StorageClass] id::String bty::Decorated BaseTypeExpr result::Decorated TypeModifierExpr params::Decorated Parameters variadic::Boolean q::Qualifiers 
 {
   return
-    variableDecls(
-      storage, nilAttribute(),
-      builtinTypeExpr(nilQualifier(), voidType()),
-      consDeclarator(
-        declarator(
-          name("_search_function_" ++ id, location=builtin),
-          functionTypeExprWithArgs(
-            baseTypeExpr(),
-            foldr(
-              consParameters,
-              new(params),
-              [parameterDecl(
-                 [],
-                 typedefTypeExpr(nilQualifier(), name("task_buffer_t", location=builtin)),
-                 pointerTypeExpr(
-                   consQualifier(constQualifier(location=builtin), nilQualifier()),
-                   baseTypeExpr()),
-                 justName(name("_schedule", location=builtin)),
-                 nilAttribute()),
-               parameterDecl(
-                 [],
-                 refCountClosureTypeExpr(
-                   nilQualifier(),
-                   consParameters(
-                     parameterDecl(
-                       [],
-                       typedefTypeExpr(nilQualifier(), name("task_buffer_t", location=builtin)),
-                       pointerTypeExpr(
-                         consQualifier(constQualifier(location=builtin), nilQualifier()),
-                         baseTypeExpr()),
-                       nothingName(), nilAttribute()),
-                     case result.typerep of
-                       builtinType(_, voidType()) -> nilParameters()
-                     | _ ->
-                       consParameters(
-                         parameterDecl([], new(bty), new(result), nothingName(), nilAttribute()),
-                         nilParameters())
-                     end),
-                   typeName(builtinTypeExpr(nilQualifier(), voidType()), baseTypeExpr()),
-                   builtin),
-                 baseTypeExpr(),
-                 justName(name("_continuation", location=builtin)),
-                 nilAttribute()),
-               parameterDecl(
-                 [],
-                 builtinTypeExpr(nilQualifier(), boolType()),
-                 pointerTypeExpr(
-                   consQualifier(constQualifier(location=builtin), nilQualifier()),
-                   baseTypeExpr()),
-                 justName(name("_cancelled", location=builtin)),
-                 nilAttribute())]),
-              variadic, q),
-            nilAttribute(),
-            nothingInitializer()),
-          nilDeclarator()));
+    ableC_Decl {
+      proto_typedef task_buffer_t;
+      $StorageClasses{storage} void $name{"_search_function_" ++ id}(
+        task_buffer_t *const _schedule,
+        refcount::closure<(
+          task_buffer_t *const,
+          $Parameters{
+            case result.typerep of
+              builtinType(_, voidType()) -> nilParameters()
+            | _ ->
+              consParameters(
+                parameterDecl([], new(bty), new(result), nothingName(), nilAttribute()),
+                  nilParameters())
+            end}) -> void> _continuation,
+        _Bool *_cancelled,
+        $Parameters{new(params)});
+    };
 }
 
 function directTypeParameters
@@ -364,28 +282,38 @@ top::Expr ::= driver::Name driverArgs::Exprs result::MaybeExpr f::Name a::Exprs
   local localErrors::[Message] =
     if !null(localBaseErrors) then localBaseErrors else localTypeErrors;
   local fwrd::Expr =
-    substExpr(
-      [typedefSubstitution("__res_type__", directTypeExpr(resType)),
-       declRefSubstitution("__result__", result.justTheExpr.fromJust),
-       exprsSubstitution("__args__", a),
-       exprsSubstitution("__driver_args__", driverArgs)],
-      parseExpr(s"""
-({proto_typedef task_t, task_buffer_t, __res_type__;
-  _Bool _is_success[1] = {0};
-  ${if result.isJust then "__res_type__ *_result = __result__;" else ""}
-  closure<() -> void> _notify_success[1];
-  closure<(task_buffer_t *const${if result.isJust then ", __res_type__" else ""}) -> void> _success_continuation =
-    lambda (task_buffer_t *const _schedule
-            ${if result.isJust then ", __res_type__ result" else ""}) -> (void) {
-      *_is_success = 1;
-      ${if result.isJust then "*_result = result;" else ""}
-      (*_notify_success)();
+    ableC_Expr {
+      ({proto_typedef task_t, task_buffer_t;
+        _Bool _is_success[1] = {0};
+        $Stmt{
+          if result.isJust
+          then
+            ableC_Stmt { $directTypeExpr{resType} *_result = $Expr{result.justTheExpr.fromJust}; }
+          else nullStmt()}
+        refcount::closure<() -> void> _notify_success[1];
+        refcount::closure<
+          (task_buffer_t *const,
+           $Parameters{
+             if result.isJust
+             then ableC_Parameters { $directTypeExpr{resType} }
+             else nilParameters()}) -> void> _success_continuation =
+          refcount::lambda (
+            task_buffer_t *const _schedule,
+            $Parameters{
+              if result.isJust
+              then ableC_Parameters { $directTypeExpr{resType} result }
+              else nilParameters()}) -> (void) {
+            *_is_success = 1;
+            $Stmt{if result.isJust then ableC_Stmt{ *_result = result; } else nullStmt()}
+            (*_notify_success)();
+          };
+        task_t _task =
+          refcount::lambda (task_buffer_t *const _schedule) ->
+            ($name{"_search_function_" ++ f.name}(
+               _schedule, _success_continuation, (void*)0, $Exprs{a}));
+        $Name{driver}(_task, _notify_success, $Exprs{driverArgs});
+        *_is_success;})
     };
-  task_t _task =
-    lambda (task_buffer_t *const _schedule) ->
-      (_search_function_${f.name}(_schedule, _success_continuation, (void*)0, __args__));
-  ${driver.name}(_task, _notify_success, __driver_args__);
-  *_is_success;})"""));
   
   forwards to
     if !null(localErrors) || null(lookupValue(s"_search_function_${f.name}", top.env))

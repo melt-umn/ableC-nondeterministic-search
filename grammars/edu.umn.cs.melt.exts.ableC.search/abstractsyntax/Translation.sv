@@ -14,22 +14,21 @@ top::Translation ::= s::Stmt
   
   forwards to
     closureTranslation_i(
-      substExpr(
-        [stmtSubstitution("__body__", s)],
-        parseExpr(s"""
-({proto_typedef task_buffer_t;
-  lambda (task_buffer_t *const _schedule) -> (void) {
-    if (_cancelled == 0 || !*_cancelled)
-      __body__;
-    };})""")));
+      ableC_Expr {
+        refcount::lambda (task_buffer_t *const _schedule) -> (void) {
+          if (_cancelled == 0 || !*_cancelled) {
+            $Stmt{s}
+          }
+        }
+      });
 }
 
 abstract production closureRefTranslation_i
 top::Translation ::= n::Name
 {
   top.asClosure = declRefExpr(n, location=builtin);
-  top.asStmt = parseStmt(s"${n.name}(_schedule);");
-  top.asStmtLazy = parseStmt(s"${n.name}.add_ref(); put_task(_schedule, ${n.name});");
+  top.asStmt = ableC_Stmt { $Name{n}(_schedule); };
+  top.asStmtLazy = ableC_Stmt { $Name{n}.add_ref(); put_task(_schedule, $Name{n}); };
   top.asClosureRef = pair(pair(nullStmt(), nullStmt()), n);
 }
 
@@ -39,22 +38,20 @@ top::Translation ::= e::Expr
   top.asClosure = e;
   local tmpId::String = "_task_" ++ toString(genInt());
   top.asStmt =
-    substStmt(
-      [declRefSubstitution("__e__", e)],
-      parseStmt(s"""
-proto_typedef task_t;
-task_t ${tmpId} = __e__;
-${tmpId}(_schedule);
-${tmpId}.remove_ref();"""));
-  top.asStmtLazy =
-    substStmt([declRefSubstitution("__e__", e)], parseStmt(s"put_task(_schedule, __e__);"));
+    ableC_Stmt {
+      proto_typedef task_t;
+      task_t $name{tmpId} = $Expr{e};
+      $name{tmpId}(_schedule);
+      $name{tmpId}.remove_ref();
+    };
+  top.asStmtLazy = ableC_Stmt { put_task(_schedule, $Expr{e}); };
   top.asClosureRef =
     pair(
       pair(
         substStmt(
           [declRefSubstitution("__e__", e)],
-          parseStmt(s"proto_typedef task_t; task_t ${tmpId} = __e__;")),
-        parseStmt(s"${tmpId}.remove_ref();")),
+          ableC_Stmt { proto_typedef task_t; task_t $name{tmpId} = $Expr{e}; }),
+        ableC_Stmt { $name{tmpId}.remove_ref(); }),
       name(tmpId, location=builtin));
 }
 
