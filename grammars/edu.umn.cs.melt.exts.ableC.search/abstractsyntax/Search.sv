@@ -251,7 +251,7 @@ top::Expr ::= driver::Name driverArgs::Exprs result::MaybeExpr f::Name a::Exprs
         [head(lookupValue("task_t", top.env)).typerep,
          pointerType(
            nilQualifier(),
-           refCountClosureType(nilQualifier(), [], builtinType(nilQualifier(), voidType())))],
+           extType(nilQualifier(), refCountClosureType([], builtinType(nilQualifier(), voidType()))))],
         true),
       nilQualifier());
   local isDriverTypeValid::Boolean =
