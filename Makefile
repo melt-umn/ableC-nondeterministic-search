@@ -4,8 +4,6 @@
 #
 # `make build`: build the artifact
 #
-# `make libs`: build any libraries packaged for use with the extension
-#
 # `make examples`: compile and run the example uses of the extension
 #
 # `make analyses`: run the modular analyses that provide strong composability
@@ -33,18 +31,16 @@ EXTS_BASE?=../../extensions
 
 MAKEOVERRIDES=ABLEC_BASE=$(abspath $(ABLEC_BASE)) EXTS_BASE=$(abspath $(EXTS_BASE))
 
-all: libs examples analyses test
+all: examples analyses test
 
 build:
 	$(MAKE) -C examples ableC.jar
 
-libs:
-	$(MAKE) -C src
-
 examples:
 	$(MAKE) -C examples
 
-analyses: mda mwda
+analyses:
+	$(MAKE) -C modular_analyses
 
 mda:
 	$(MAKE) -C modular_analyses mda
@@ -57,10 +53,9 @@ test:
 
 clean:
 	rm -f *~ 
-	$(MAKE) -C src realclean
 	$(MAKE) -C examples clean
 	$(MAKE) -C modular_analyses clean
 	$(MAKE) -C tests clean
 
-.PHONY: all build libs examples analyses mda mwda test clean
+.PHONY: all build examples analyses mda mwda test clean
 .NOTPARALLEL: # Avoid running multiple Silver builds in parallel
