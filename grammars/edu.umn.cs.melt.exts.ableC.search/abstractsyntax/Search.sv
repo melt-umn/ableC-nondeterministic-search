@@ -56,7 +56,7 @@ top::SearchFunctionDecl ::= storage::[StorageClass] bty::BaseTypeExpr mty::TypeM
     | functionTypeExprWithArgs(result, params, variadic, q) -> params
     | functionTypeExprWithoutArgs(result, ids, q) ->
       -- TODO: Raise an error if ids isn't null
-      decorate nilParameters() with {env = top.env; returnType = nothing();}
+      decorate nilParameters() with {env = top.env; returnType = nothing(); position = 0;}
     | _ -> error("mty should always be a functionTypeExpr")
     end;
   local variadic::Boolean =
@@ -108,7 +108,7 @@ top::SearchFunctionDecl ::= storage::[StorageClass] fnquals::SpecialSpecifiers b
     | functionTypeExprWithArgs(result, params, variadic, q) -> params
     | functionTypeExprWithoutArgs(result, ids, q) ->
       -- TODO: Raise an error if ids isn't null
-      decorate nilParameters() with {env = top.env; returnType = nothing();}
+      decorate nilParameters() with {env = top.env; returnType = nothing(); position = 0;}
     | _ -> error("mty should always be a functionTypeExpr")
     end;
   local variadic::Boolean =
