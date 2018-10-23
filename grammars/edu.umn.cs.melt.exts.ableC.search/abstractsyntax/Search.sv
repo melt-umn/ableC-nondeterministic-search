@@ -170,7 +170,7 @@ top::SearchFunctionDecl ::= storage::[StorageClass] fnquals::SpecialSpecifiers b
   mty.returnType = nothing();
   mty.baseType = bty.typerep;
   mty.typeModifiersIn = bty.typeModifiers;
-  body.env = addEnv(params.defs, mty.env);
+  body.env = addEnv(mty.defs ++ params.functionDefs, mty.env);
   body.expectedResultType = result.typerep;
   body.nextTranslation = stmtTranslation(nullStmt());
 }
