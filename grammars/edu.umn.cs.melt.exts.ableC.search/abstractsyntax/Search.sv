@@ -56,7 +56,7 @@ top::SearchFunctionDecl ::= storage::[StorageClass] bty::BaseTypeExpr mty::TypeM
     | functionTypeExprWithArgs(result, params, variadic, q) -> params
     | functionTypeExprWithoutArgs(result, ids, q) ->
       -- TODO: Raise an error if ids isn't null
-      decorate nilParameters() with {env = top.env; returnType = nothing();}
+      decorate nilParameters() with {env = top.env; returnType = nothing(); position = 0;}
     | _ -> error("mty should always be a functionTypeExpr")
     end;
   local variadic::Boolean =
@@ -108,7 +108,7 @@ top::SearchFunctionDecl ::= storage::[StorageClass] fnquals::SpecialSpecifiers b
     | functionTypeExprWithArgs(result, params, variadic, q) -> params
     | functionTypeExprWithoutArgs(result, ids, q) ->
       -- TODO: Raise an error if ids isn't null
-      decorate nilParameters() with {env = top.env; returnType = nothing();}
+      decorate nilParameters() with {env = top.env; returnType = nothing(); position = 0;}
     | _ -> error("mty should always be a functionTypeExpr")
     end;
   local variadic::Boolean =
@@ -170,7 +170,7 @@ top::SearchFunctionDecl ::= storage::[StorageClass] fnquals::SpecialSpecifiers b
   mty.returnType = nothing();
   mty.baseType = bty.typerep;
   mty.typeModifiersIn = bty.typeModifiers;
-  body.env = addEnv(params.defs, mty.env);
+  body.env = addEnv(mty.defs ++ params.functionDefs, mty.env);
   body.expectedResultType = result.typerep;
   body.nextTranslation = stmtTranslation(nullStmt());
 }
@@ -251,7 +251,7 @@ top::Expr ::= driver::Name driverArgs::Exprs result::MaybeExpr f::Name a::Exprs
         [head(lookupValue("task_t", top.env)).typerep,
          pointerType(
            nilQualifier(),
-           refCountClosureType(nilQualifier(), [], builtinType(nilQualifier(), voidType())))],
+           extType(nilQualifier(), refCountClosureType([], builtinType(nilQualifier(), voidType()))))],
         true),
       nilQualifier());
   local isDriverTypeValid::Boolean =
