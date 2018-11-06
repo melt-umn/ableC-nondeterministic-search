@@ -40,7 +40,7 @@ concrete productions top::SearchFunctionDefinition_c
     local specialSpecifiers :: SpecialSpecifiers =
       foldr(consSpecialSpecifier, nilSpecialSpecifier(), ds.specialSpecifiers);
 
-    top.ast = searchFunctionDeclaration(searchFunctionProto(ds.storageClass, bt, d.ast, d.declaredIdent));
+    top.ast = searchFunctionDeclaration(searchFunctionProto(foldStorageClass(ds.storageClass), bt, d.ast, d.declaredIdent));
   }
 
 inherited attribute givenSearchStmt::SearchStmt;
@@ -59,7 +59,7 @@ concrete productions top::InitialSearchFunctionDefinition_c
       foldr(consSpecialSpecifier, nilSpecialSpecifier(), ds.specialSpecifiers);
     
     top.ast =
-      searchFunctionDeclaration(searchFunctionDecl(ds.storageClass, specialSpecifiers, bt, d.ast, d.declaredIdent, top.givenSearchStmt));
+      searchFunctionDeclaration(searchFunctionDecl(foldStorageClass(ds.storageClass), specialSpecifiers, bt, d.ast, d.declaredIdent, top.givenSearchStmt));
   }
   action {
     -- Function are annoying because we have to open a scope, then add the

@@ -277,7 +277,7 @@ concrete productions top::SearchDeclaration_c
         else
           typedefDecls(ds.attributes, bt, dcls)
       else
-        variableDecls(ds.storageClass, ds.attributes, bt, dcls);
+        variableDecls(foldStorageClass(ds.storageClass), ds.attributes, bt, dcls);
   }
   action {
     context =

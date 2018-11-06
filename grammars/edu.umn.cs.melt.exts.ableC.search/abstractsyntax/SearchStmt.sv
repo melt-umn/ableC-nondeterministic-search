@@ -369,7 +369,7 @@ top::SearchStmt ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name f::Name a::
   d.typeModifiersIn = bty.typeModifiers;
   d.isTopLevel = false;
   d.isTypedef = false;
-  d.givenStorageClasses = [];
+  d.givenStorageClasses = nilStorageClass();
   d.givenAttributes = nilAttribute();
   d.returnType = nothing();
   
@@ -537,7 +537,7 @@ top::SearchStmt ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name f::Name a::
   d.typeModifiersIn = bty.typeModifiers;
   d.isTopLevel = false;
   d.isTypedef = false;
-  d.givenStorageClasses = [];
+  d.givenStorageClasses = nilStorageClass();
   d.givenAttributes = nilAttribute();
   d.returnType = nothing();
   
