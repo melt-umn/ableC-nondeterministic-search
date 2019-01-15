@@ -282,8 +282,8 @@ concrete productions top::SearchDeclaration_c
   action {
     context =
       if ds.isTypedef
-      then lh:addTypenamesToScope(idcl.declaredIdents, context)
-      else lh:addIdentsToScope(idcl.declaredIdents, context);
+      then addIdentsToScope(idcl.declaredIdents, TypeName_t, context)
+      else addIdentsToScope(idcl.declaredIdents, Identifier_t, context);
   }
 | ds::DeclarationSpecifiers_c  ';'
   {

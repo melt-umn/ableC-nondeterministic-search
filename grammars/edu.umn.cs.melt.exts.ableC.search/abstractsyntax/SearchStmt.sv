@@ -345,6 +345,7 @@ top::SearchStmt ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name f::Name a::
   top.translation =
     stmtTranslation(
       ableC_Stmt {
+        proto_typedef task_buffer_t;
         $name{"_search_function_" ++ f.name}(
           _schedule,
           refcount::lambda (
@@ -504,7 +505,7 @@ top::SearchStmt ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name f::Name a::
   top.translation =
     stmtTranslation(
       ableC_Stmt {
-        proto_typedef refcount_tag_t, pick_status_t;
+        proto_typedef refcount_tag_t, pick_status_t, task_buffer_t;
         
         pick_status_t $name{pickId};
         //fprintf(stderr, "Allocating ${pickId}\n");
