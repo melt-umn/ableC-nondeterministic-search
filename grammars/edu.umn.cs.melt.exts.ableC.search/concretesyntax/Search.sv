@@ -3,7 +3,6 @@ grammar edu:umn:cs:melt:exts:ableC:search:concretesyntax;
 imports silver:langutil;
 
 imports edu:umn:cs:melt:ableC:concretesyntax;
-imports edu:umn:cs:melt:ableC:concretesyntax:lexerHack as lh;
 
 imports edu:umn:cs:melt:ableC:abstractsyntax:host;
 imports edu:umn:cs:melt:ableC:abstractsyntax:construction;
@@ -28,7 +27,7 @@ concrete productions top::SearchFunctionDefinition_c
     d.givenSearchStmt = foldSeqSearchStmt(ss.ast);
   }
   action {
-    context = lh:closeScope(context); -- Opened by InitialSearchFunctionDefinition_c.
+    context = closeScope(context); -- Opened by InitialSearchFunctionDefinition_c.
   }
 | ds::DeclarationSpecifiers_c d::Declarator_c ';'
   {
@@ -64,7 +63,7 @@ concrete productions top::InitialSearchFunctionDefinition_c
   action {
     -- Function are annoying because we have to open a scope, then add the
     -- parameters, and close it after the brace.
-    context = lh:beginFunctionScope(d.declaredIdent, d.declaredParamIdents, context);
+    context = beginFunctionScope(d.declaredIdent, Identifier_t, d.declaredParamIdents, Identifier_t, context);
   }
 
 concrete production invokeExpr_c

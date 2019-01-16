@@ -15,6 +15,7 @@ top::Translation ::= s::Stmt
   forwards to
     closureTranslation_i(
       ableC_Expr {
+        proto_typedef task_buffer_t;
         refcount::lambda (task_buffer_t *const _schedule) -> (void) {
           if (_cancelled == 0 || !*_cancelled) {
             $Stmt{s}
