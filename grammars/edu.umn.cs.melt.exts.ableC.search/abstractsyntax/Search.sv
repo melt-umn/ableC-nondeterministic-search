@@ -38,7 +38,7 @@ nonterminal SearchFunctionDecl with env, substitutions, pp, substituted<SearchFu
 flowtype SearchFunctionDecl = decorate {env}, pp {}, substituted {substitutions}, host {decorate}, errors {decorate}, name {decorate}, resultType {decorate}, parameterTypes {decorate}, sourceLocation {decorate};
 
 abstract production searchFunctionProto
-top::SearchFunctionDecl ::= storage::[StorageClass] bty::BaseTypeExpr mty::TypeModifierExpr id::Name
+top::SearchFunctionDecl ::= storage::StorageClasses bty::BaseTypeExpr mty::TypeModifierExpr id::Name
 {
   propagate substituted;
   top.pp =
@@ -56,7 +56,7 @@ top::SearchFunctionDecl ::= storage::[StorageClass] bty::BaseTypeExpr mty::TypeM
     | functionTypeExprWithArgs(result, params, variadic, q) -> params
     | functionTypeExprWithoutArgs(result, ids, q) ->
       -- TODO: Raise an error if ids isn't null
-      decorate nilParameters() with {env = top.env; returnType = nothing();}
+      decorate nilParameters() with {env = top.env; returnType = nothing(); position = 0;}
     | _ -> error("mty should always be a functionTypeExpr")
     end;
   local variadic::Boolean =
@@ -89,7 +89,7 @@ top::SearchFunctionDecl ::= storage::[StorageClass] bty::BaseTypeExpr mty::TypeM
 }
 
 abstract production searchFunctionDecl
-top::SearchFunctionDecl ::= storage::[StorageClass] fnquals::SpecialSpecifiers bty::BaseTypeExpr mty::TypeModifierExpr id::Name body::SearchStmt
+top::SearchFunctionDecl ::= storage::StorageClasses fnquals::SpecialSpecifiers bty::BaseTypeExpr mty::TypeModifierExpr id::Name body::SearchStmt
 {
   propagate substituted;
   top.pp =
@@ -108,7 +108,7 @@ top::SearchFunctionDecl ::= storage::[StorageClass] fnquals::SpecialSpecifiers b
     | functionTypeExprWithArgs(result, params, variadic, q) -> params
     | functionTypeExprWithoutArgs(result, ids, q) ->
       -- TODO: Raise an error if ids isn't null
-      decorate nilParameters() with {env = top.env; returnType = nothing();}
+      decorate nilParameters() with {env = top.env; returnType = nothing(); position = 0;}
     | _ -> error("mty should always be a functionTypeExpr")
     end;
   local variadic::Boolean =
@@ -170,13 +170,13 @@ top::SearchFunctionDecl ::= storage::[StorageClass] fnquals::SpecialSpecifiers b
   mty.returnType = nothing();
   mty.baseType = bty.typerep;
   mty.typeModifiersIn = bty.typeModifiers;
-  body.env = addEnv(params.defs, mty.env);
+  body.env = addEnv(mty.defs ++ params.functionDefs, mty.env);
   body.expectedResultType = result.typerep;
   body.nextTranslation = stmtTranslation(nullStmt());
 }
 
 function makeSearchFunctionProto
-Decl ::= storage::[StorageClass] id::String bty::Decorated BaseTypeExpr result::Decorated TypeModifierExpr params::Decorated Parameters variadic::Boolean q::Qualifiers 
+Decl ::= storage::StorageClasses id::String bty::Decorated BaseTypeExpr result::Decorated TypeModifierExpr params::Decorated Parameters variadic::Boolean q::Qualifiers 
 {
   return
     ableC_Decl {
@@ -190,7 +190,7 @@ Decl ::= storage::[StorageClass] id::String bty::Decorated BaseTypeExpr result::
               builtinType(_, voidType()) -> nilParameters()
             | _ ->
               consParameters(
-                parameterDecl([], new(bty), new(result), nothingName(), nilAttribute()),
+                parameterDecl(nilStorageClass(), new(bty), new(result), nothingName(), nilAttribute()),
                   nilParameters())
             end}) -> void> _continuation,
         _Bool *_cancelled,
@@ -251,7 +251,7 @@ top::Expr ::= driver::Name driverArgs::Exprs result::MaybeExpr f::Name a::Exprs
         [head(lookupValue("task_t", top.env)).typerep,
          pointerType(
            nilQualifier(),
-           refCountClosureType(nilQualifier(), [], builtinType(nilQualifier(), voidType())))],
+           extType(nilQualifier(), refCountClosureType([], builtinType(nilQualifier(), voidType()))))],
         true),
       nilQualifier());
   local isDriverTypeValid::Boolean =

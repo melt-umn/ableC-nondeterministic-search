@@ -277,13 +277,13 @@ concrete productions top::SearchDeclaration_c
         else
           typedefDecls(ds.attributes, bt, dcls)
       else
-        variableDecls(ds.storageClass, ds.attributes, bt, dcls);
+        variableDecls(foldStorageClass(ds.storageClass), ds.attributes, bt, dcls);
   }
   action {
     context =
       if ds.isTypedef
-      then lh:addTypenamesToScope(idcl.declaredIdents, context)
-      else lh:addIdentsToScope(idcl.declaredIdents, context);
+      then addIdentsToScope(idcl.declaredIdents, TypeName_t, context)
+      else addIdentsToScope(idcl.declaredIdents, Identifier_t, context);
   }
 | ds::DeclarationSpecifiers_c  ';'
   {

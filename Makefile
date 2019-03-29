@@ -33,7 +33,7 @@ EXTS_BASE?=../../extensions
 
 MAKEOVERRIDES=ABLEC_BASE=$(abspath $(ABLEC_BASE)) EXTS_BASE=$(abspath $(EXTS_BASE))
 
-all: libs examples analyses test
+all: examples analyses test
 
 build:
 	$(MAKE) -C examples ableC.jar
@@ -44,7 +44,8 @@ libs:
 examples:
 	$(MAKE) -C examples
 
-analyses: mda mwda
+analyses:
+	$(MAKE) -C modular_analyses
 
 mda:
 	$(MAKE) -C modular_analyses mda
@@ -56,8 +57,8 @@ test:
 	$(MAKE) -C tests -k
 
 clean:
-	rm -f *~ 
-	$(MAKE) -C src realclean
+	rm -f *~
+	$(MAKE) -C src clean
 	$(MAKE) -C examples clean
 	$(MAKE) -C modular_analyses clean
 	$(MAKE) -C tests clean
