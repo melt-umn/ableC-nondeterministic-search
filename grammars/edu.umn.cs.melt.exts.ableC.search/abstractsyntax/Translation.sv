@@ -49,9 +49,7 @@ top::Translation ::= e::Expr
   top.asClosureRef =
     pair(
       pair(
-        substStmt(
-          [declRefSubstitution("__e__", e)],
-          ableC_Stmt { proto_typedef task_t; task_t $name{tmpId} = $Expr{e}; }),
+        ableC_Stmt { proto_typedef task_t; task_t $name{tmpId} = $Expr{e}; },
         ableC_Stmt { $name{tmpId}.remove_ref(); }),
       name(tmpId, location=builtin));
 }
