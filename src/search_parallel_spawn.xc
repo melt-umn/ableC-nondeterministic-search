@@ -38,7 +38,7 @@ void *spawn_worker(void *args) {
       pthread_mutex_unlock(p_global_buffer_mutex);
       if (!failure) {
         // Expand the task to the specified depth
-        task_buffer_t buffer = expand(task, depth);
+        task_buffer_t buffer = expand(task, depth, p_success);
         
         // Initialize new buffers each containing one element from the expanded buffer
         buffers_size = buffer.size;
@@ -73,7 +73,7 @@ void search_parallel_spawn(task_t task, closure<() -> void> *notify_success,
   *notify_success = lambda () -> (void) { *p_success = true; };
 
   // Expand the task to the specified depth
-  task_buffer_t buffer = expand(task, global_depth);
+  task_buffer_t buffer = expand(task, global_depth, p_success);
   
   // Launch worker threads to evaluate tasks until finished
   struct params params = {thread_depth, PTHREAD_MUTEX_INITIALIZER, buffer, p_success};

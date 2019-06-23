@@ -1,8 +1,9 @@
 grammar edu:umn:cs:melt:exts:ableC:search:concretesyntax;
 
-terminal Choice_t  'choice'  lexer classes {Ckeyword};
 terminal Succeed_t 'succeed' lexer classes {Ckeyword};
 terminal Fail_t    'fail'    lexer classes {Ckeyword};
+terminal Spawn_t   'spawn'   lexer classes {Ckeyword};
+terminal Choice_t  'choice'  lexer classes {Ckeyword};
 terminal Choose_t  'choose'  lexer classes {Ckeyword};
 terminal Pick_t    'pick'    lexer classes {Ckeyword};
 terminal Finally_t 'finally' lexer classes {Ckeyword}, precedence = 3, association = left;
@@ -62,6 +63,8 @@ concrete productions top::SearchStmt_c
   { top.ast = finallySearchStmt(succeedSearchStmt(nothingExpr(), location=top.location), foldStmt(b.ast), location=top.location); }
 | 'fail' ';'
   { top.ast = failSearchStmt(location=top.location); }
+| 'spawn' s::SearchStmt_c
+  { top.ast = spawnSearchStmt(s.ast, location=top.location); }
 | '{' ss::SearchStmts_c '}'
   { top.ast = compoundSearchStmt(foldSeqSearchStmt(ss.ast), location=top.location); }
 -- Optional 'finally' clause can't be factored out for these, unfourtunately, due to use of precedence

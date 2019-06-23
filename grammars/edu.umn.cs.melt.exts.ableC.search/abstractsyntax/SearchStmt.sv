@@ -117,6 +117,18 @@ top::SearchStmt ::=
   top.hasContinuation = true;
 }
 
+abstract production spawnSearchStmt
+top::SearchStmt ::= s::SearchStmt
+{
+  top.pp = ppConcat([pp"spawn", line(), nestlines(2, ppImplode(line(), top.seqPPs))]);
+  top.errors := s.errors;
+  top.defs := [];
+  
+  top.translation = stmtTranslation(s.translation.asStmtLazy);
+  s.nextTranslation = top.nextTranslation;
+  top.hasContinuation = true;
+}
+
 abstract production seqSearchStmt
 top::SearchStmt ::= h::SearchStmt t::SearchStmt
 {
@@ -152,7 +164,7 @@ top::SearchStmt ::= h::SearchStmt t::SearchStmt
     stmtTranslation(
       foldStmt(
         top.nextTranslation.asClosureRef.fst.fst ::
-        map((.asStmtLazy), map((.translation), top.choices)) ++
+        map((.asStmt), map((.translation), top.choices)) ++
         [top.nextTranslation.asClosureRef.fst.snd]));
   h.nextTranslation = closureRefTranslation(top.nextTranslation.asClosureRef.snd);
   t.nextTranslation = h.nextTranslation;
@@ -173,7 +185,7 @@ top::SearchStmt ::= i::MaybeExpr  c::MaybeExpr  s::MaybeExpr  b::SearchStmt
     stmtTranslation(
       foldStmt(
         [top.nextTranslation.asClosureRef.fst.fst,
-         forStmt(i, c, s, b.translation.asStmtLazy),
+         forStmt(i, c, s, b.translation.asStmt),
          top.nextTranslation.asClosureRef.fst.snd]));
   b.nextTranslation = closureRefTranslation(top.nextTranslation.asClosureRef.snd);
   
@@ -201,7 +213,7 @@ top::SearchStmt ::= i::Decl  c::MaybeExpr  s::MaybeExpr  b::SearchStmt
     stmtTranslation(
       foldStmt(
         [top.nextTranslation.asClosureRef.fst.fst,
-         forDeclStmt(i, c, s, b.translation.asStmtLazy),
+         forDeclStmt(i, c, s, b.translation.asStmt),
          top.nextTranslation.asClosureRef.fst.snd]));
   b.nextTranslation = closureRefTranslation(top.nextTranslation.asClosureRef.snd);
   

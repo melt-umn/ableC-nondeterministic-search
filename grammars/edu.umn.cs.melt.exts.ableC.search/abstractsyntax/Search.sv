@@ -298,8 +298,11 @@ top::Expr ::= driver::Name driverArgs::Exprs result::MaybeExpr f::Name a::Exprs
               if result.isJust
               then ableC_Parameters { $directTypeExpr{resType} result }
               else nilParameters()}) -> (void) {
+            $Stmt{
+              if result.isJust
+              then ableC_Stmt{ if (!*_is_success) *_result = result; }
+              else nullStmt()}
             *_is_success = 1;
-            $Stmt{if result.isJust then ableC_Stmt{ *_result = result; } else nullStmt()}
             (*_notify_success)();
           };
         task_t _task =

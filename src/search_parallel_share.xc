@@ -82,7 +82,7 @@ void *share_worker(void *args) {
           pthread_mutex_unlock(p_global_buffer_mutex);
           if (valid_task) {
             // Expand the task to the specified depth
-            task_buffer_t buffer = expand(task, depth);
+            task_buffer_t buffer = expand(task, depth, p_done);
         
             // Initialize new buffers each containing one element from the expanded buffer
             buffers_size = buffer.size;
@@ -157,7 +157,7 @@ void search_parallel_share(task_t task, closure<() -> void> *notify_success,
   *notify_success = lambda () -> (void) { *p_done = true; };
   
   // Expand the task until there are enough tasks for all threads
-  task_buffer_t buffer = expand(task, global_depth);
+  task_buffer_t buffer = expand(task, global_depth, p_done);
   
   // Initialize worker thread parameters
   struct params params[num_threads];

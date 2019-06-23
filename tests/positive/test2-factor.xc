@@ -12,6 +12,7 @@ search int factor(int n) {
     }
   } else {
     choose int a = range((int)ceil(sqrt(n)), n);
+    spawn;
     float b = sqrt(a * a - n);
     require b == floor(b);
     choice {
