@@ -82,7 +82,7 @@ top::SearchFunctionDecl ::= storage::StorageClasses bty::BaseTypeExpr mty::TypeM
   mty.env = openScopeEnv(addEnv(bty.defs, bty.env));
   mty.returnType = nothing();
   mty.baseType = bty.typerep;
-  mty.typeModifiersIn = bty.typeModifiers;
+  mty.typeModifierIn = bty.typeModifier;
 }
 
 abstract production searchFunctionDecl
@@ -165,7 +165,7 @@ top::SearchFunctionDecl ::= storage::StorageClasses fnquals::SpecialSpecifiers b
   mty.env = addEnv(implicitDefs, openScopeEnv(addEnv(searchFunctionDef(id.name, searchFunctionItem(top)) :: bty.defs, bty.env)));
   mty.returnType = nothing();
   mty.baseType = bty.typerep;
-  mty.typeModifiersIn = bty.typeModifiers;
+  mty.typeModifierIn = bty.typeModifier;
   body.env = addEnv(mty.defs ++ params.functionDefs, mty.env);
   body.expectedResultType = result.typerep;
   body.nextTranslation = stmtTranslation(nullStmt());
