@@ -199,7 +199,7 @@ Parameters ::= p::Decorated Parameters
 {
   return
     case p of
-      consParameters(parameterDecl(storage, bty, mty, n, attrs), t) ->
+    | consParameters(parameterDecl(storage, bty, mty, n, attrs), t) ->
         consParameters(
           parameterDecl(storage, directTypeExpr(mty.typerep), baseTypeExpr(), n, attrs),
           directTypeParameters(t))
@@ -215,17 +215,20 @@ top::Expr ::= driver::Name driverArgs::Exprs result::MaybeExpr f::Name a::Exprs
   driverArgs.returnType = nothing();
   driverArgs.expectedTypes =
     case driver.valueItem.typerep of
-      functionType(_, protoFunctionType(parameterTypes, _), _) -> tail(tail(parameterTypes)) 
+    | functionType(_, protoFunctionType(parameterTypes, _), _) -> tail(tail(parameterTypes))
     | _ -> []
     end;
   driverArgs.argumentPosition = 1;
   driverArgs.callExpr = decorate declRefExpr(f, location=f.location) with {env = top.env; returnType = nothing();};
   driverArgs.callVariadic = 
     case driver.valueItem.typerep of
-      functionType(_, protoFunctionType(_, variadic), _) -> variadic 
+    | functionType(_, protoFunctionType(_, variadic), _) -> variadic
     | _ -> true
     end;
+    
+  result.env = addEnv(driverArgs.defs, driverArgs.env);
   
+  a.env = addEnv(result.defs, result.env);
   a.returnType = nothing();
   a.expectedTypes = f.searchFunctionItem.parameterTypes;
   a.argumentPosition = 1;
@@ -308,7 +311,7 @@ top::Expr ::= driver::Name driverArgs::Exprs result::MaybeExpr f::Name a::Exprs
         task_t _task =
           refcount::lambda (task_buffer_t *const _schedule) ->
             ($name{"_search_function_" ++ f.name}(
-               _schedule, _success_continuation, (void*)0, $Exprs{a}));
+               _schedule, _success_continuation, (void*)0, $Exprs{decExprs(a)}));
         $Name{driver}(_task, _notify_success, $Exprs{driverArgs});
         *_is_success;})
     };

@@ -75,13 +75,13 @@ top::PrimaryExpr_c ::= 'invoke' '(' args::ArgumentExprList_c ')'
 
   top.ast =
     case argExprs of
-    | consExpr(declRefExpr(driver), consExpr(result, consExpr(callExpr(decExpr(declRefExpr(f)), a), nilExpr()))) ->
+    | consExpr(declRefExpr(driver), consExpr(result, consExpr(callExpr(decExpr(declRefExpr(f)), decExprs(a)), nilExpr()))) ->
       invokeExpr(driver, nilExpr(), justExpr(result), f, a, location=top.location)
-    | consExpr(declRefExpr(driver), consExpr(callExpr(decExpr(declRefExpr(f)), a), nilExpr())) ->
+    | consExpr(declRefExpr(driver), consExpr(callExpr(decExpr(declRefExpr(f)), decExprs(a)), nilExpr())) ->
       invokeExpr(driver, nilExpr(), nothingExpr(), f, a, location=top.location)
-    | consExpr(callExpr(decExpr(declRefExpr(driver)), driverArgs), consExpr(result, consExpr(callExpr(decExpr(declRefExpr(f)), a), nilExpr()))) ->
+    | consExpr(callExpr(decExpr(declRefExpr(driver)), decExprs(driverArgs)), consExpr(result, consExpr(callExpr(decExpr(declRefExpr(f)), decExprs(a)), nilExpr()))) ->
       invokeExpr(driver, driverArgs, justExpr(result), f, a, location=top.location)
-    | consExpr(callExpr(decExpr(declRefExpr(driver)), driverArgs), consExpr(callExpr(decExpr(declRefExpr(f)), a), nilExpr())) ->
+    | consExpr(callExpr(decExpr(declRefExpr(driver)), decExprs(driverArgs)), consExpr(callExpr(decExpr(declRefExpr(f)), decExprs(a)), nilExpr())) ->
       invokeExpr(driver, driverArgs, nothingExpr(), f, a, location=top.location)
     | consExpr(declRefExpr(_), consExpr(_, consExpr(_, nilExpr()))) ->
       errorExpr([err(top.location, "Argument 3 of invoke must be a function call to an identifier")], location=top.location)
