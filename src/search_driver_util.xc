@@ -15,17 +15,18 @@ bool search_step(task_buffer_t *const p_buffer) {
   }
 }
 
-task_buffer_t expand(task_t task, size_t depth) {
-  // Expand all tasks depth number of times using 2 buffers
+task_buffer_t expand(task_t task, size_t depth, bool *abort) {
+  // Expand all tasks depth number of times using 2 buffers,
+  // or until abort is set to true
   task_buffer_t
     buffer1 = create_task_buffer(DEFAULT_TASK_BUFFER_CAPACITY, 0),
     buffer2 = create_task_buffer(DEFAULT_TASK_BUFFER_CAPACITY, 0);
   put_task(&buffer1, task);
   
-  for (size_t i = 0; i < depth; i++) {
+  for (size_t i = 0; i < depth && (!abort || !*abort); i++) {
     // Evaluate all tasks in buffer1, dispatching to buffer2
     task_t task;
-    while (get_task(&buffer1, &task)) {
+    while ((!abort || !*abort) && get_task(&buffer1, &task)) {
       task(&buffer2);
       task.remove_ref();
     }

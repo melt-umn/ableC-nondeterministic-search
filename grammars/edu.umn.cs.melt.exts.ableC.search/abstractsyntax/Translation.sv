@@ -15,6 +15,7 @@ top::Translation ::= s::Stmt
   forwards to
     closureTranslation_i(
       ableC_Expr {
+        proto_typedef task_buffer_t;
         refcount::lambda (task_buffer_t *const _schedule) -> (void) {
           if (_cancelled == 0 || !*_cancelled) {
             $Stmt{s}
@@ -48,9 +49,7 @@ top::Translation ::= e::Expr
   top.asClosureRef =
     pair(
       pair(
-        substStmt(
-          [declRefSubstitution("__e__", e)],
-          ableC_Stmt { proto_typedef task_t; task_t $name{tmpId} = $Expr{e}; }),
+        ableC_Stmt { proto_typedef task_t; task_t $name{tmpId} = $Expr{e}; },
         ableC_Stmt { $name{tmpId}.remove_ref(); }),
       name(tmpId, location=builtin));
 }

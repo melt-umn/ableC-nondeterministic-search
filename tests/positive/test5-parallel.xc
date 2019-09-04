@@ -9,11 +9,11 @@
 search unsigned long long foo(int a, unsigned long long b) {
   require a >= 0;
   choice {
-    choice for (int i = 1; i < 5; i++) {
+    choice for (int i = 1; i < 5; i++) spawn {
       nanosleep((const struct timespec[]){{0, rand() % 10000000}}, NULL);
       choose succeed foo(a - i, b * 10 + i);
     }
-    {
+    spawn {
       fprintf(stdout, "Trying %d %llu\n", a, b);
       nanosleep((const struct timespec[]){{0, rand() % 10000000}}, NULL);
       require a == 0;

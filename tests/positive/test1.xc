@@ -5,9 +5,11 @@
 
 search int either(int x, int y) {
   choice {
-    printf("Task\n");
+    spawn {
+      printf("Task\n");
+    }
     succeed x;
-    succeed y;
+    spawn succeed y;
   }
 }
 

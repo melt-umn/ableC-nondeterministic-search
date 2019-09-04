@@ -10,7 +10,7 @@ void search_sequential(task_t task, closure<() -> void> *notify_success, size_t 
   *notify_success = lambda () -> (void) { *p_success = true; };
 
   // Initially expand the task into a new buffer
-  task_buffer_t buffer = expand(task, depth);
+  task_buffer_t buffer = expand(task, depth, p_success);
   size_t buffers_size = buffer.size;
   
   if (!success) {
@@ -28,7 +28,7 @@ void search_sequential(task_t task, closure<() -> void> *notify_success, size_t 
     do {
       // Perform a step on each buffer
       failure = true;
-      for (size_t i = 0; i < buffers_size; i++) {
+      for (size_t i = 0; i < buffers_size && !success; i++) {
         failure &= search_step(buffers + i) == 0;
       }
     } while (!success && !failure);

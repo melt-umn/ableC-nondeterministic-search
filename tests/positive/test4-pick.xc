@@ -4,17 +4,17 @@
 
 search int foo(int a, int b) {
   choice {
-    { printf("foo fail\n"); fail; }
-    { printf("foo %d\n", a); succeed a; }
-    { printf("foo %d\n", b); succeed b; }
+    spawn { printf("foo fail\n"); fail; }
+    spawn { printf("foo %d\n", a); succeed a; }
+    spawn { printf("foo %d\n", b); succeed b; }
   }
 }
 
 search int bar(int a, int b) {
   choice {
-    { printf("bar fail\n"); fail; }
-    { printf("bar %d\n", a); succeed a; }
-    { printf("bar %d\n", b); succeed b; }
+    spawn { printf("bar fail\n"); fail; }
+    spawn { printf("bar %d\n", a); succeed a; }
+    spawn { printf("bar %d\n", b); succeed b; }
   }
 }
 

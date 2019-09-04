@@ -6,7 +6,6 @@ imports silver:langutil:pp;
 imports edu:umn:cs:melt:ableC:abstractsyntax:host;
 imports edu:umn:cs:melt:ableC:abstractsyntax:overloadable;
 imports edu:umn:cs:melt:ableC:abstractsyntax:construction;
-imports edu:umn:cs:melt:ableC:abstractsyntax:substitution;
 imports edu:umn:cs:melt:ableC:abstractsyntax:env;
 imports edu:umn:cs:melt:exts:ableC:refCountClosure:abstractsyntax;
 
@@ -15,7 +14,6 @@ global builtin::Location = builtinLoc("nondeterministic-search");
 abstract production searchFunctionDeclaration
 top::Decl ::= f::SearchFunctionDecl
 {
-  propagate substituted;
   top.pp = f.pp;
 
   local localErrors::[Message] = checkSearchInclude(f.sourceLocation, top.env) ++ f.errors;
@@ -34,13 +32,12 @@ top::Decl ::= f::SearchFunctionDecl
 synthesized attribute resultType::Type;
 synthesized attribute parameterTypes::[Type];
 
-nonterminal SearchFunctionDecl with env, substitutions, pp, substituted<SearchFunctionDecl>, host<Decl>, errors, name, resultType, parameterTypes, sourceLocation;
-flowtype SearchFunctionDecl = decorate {env}, pp {}, substituted {substitutions}, host {decorate}, errors {decorate}, name {decorate}, resultType {decorate}, parameterTypes {decorate}, sourceLocation {decorate};
+nonterminal SearchFunctionDecl with env, pp, host<Decl>, errors, name, resultType, parameterTypes, sourceLocation;
+flowtype SearchFunctionDecl = decorate {env}, pp {}, host {decorate}, errors {decorate}, name {decorate}, resultType {decorate}, parameterTypes {decorate}, sourceLocation {decorate};
 
 abstract production searchFunctionProto
-top::SearchFunctionDecl ::= storage::[StorageClass] bty::BaseTypeExpr mty::TypeModifierExpr id::Name
+top::SearchFunctionDecl ::= storage::StorageClasses bty::BaseTypeExpr mty::TypeModifierExpr id::Name
 {
-  propagate substituted;
   top.pp =
     ppConcat([
       text("search"), space(), bty.pp, space(), mty.lpp, id.pp, mty.rpp, semi()]);
@@ -56,7 +53,7 @@ top::SearchFunctionDecl ::= storage::[StorageClass] bty::BaseTypeExpr mty::TypeM
     | functionTypeExprWithArgs(result, params, variadic, q) -> params
     | functionTypeExprWithoutArgs(result, ids, q) ->
       -- TODO: Raise an error if ids isn't null
-      decorate nilParameters() with {env = top.env; returnType = nothing();}
+      decorate nilParameters() with {env = top.env; returnType = nothing(); position = 0;}
     | _ -> error("mty should always be a functionTypeExpr")
     end;
   local variadic::Boolean =
@@ -89,9 +86,8 @@ top::SearchFunctionDecl ::= storage::[StorageClass] bty::BaseTypeExpr mty::TypeM
 }
 
 abstract production searchFunctionDecl
-top::SearchFunctionDecl ::= storage::[StorageClass] fnquals::SpecialSpecifiers bty::BaseTypeExpr mty::TypeModifierExpr id::Name body::SearchStmt
+top::SearchFunctionDecl ::= storage::StorageClasses fnquals::SpecialSpecifiers bty::BaseTypeExpr mty::TypeModifierExpr id::Name body::SearchStmt
 {
-  propagate substituted;
   top.pp =
     ppConcat([
       text("search"), space(), bty.pp, space(), mty.lpp, id.pp, mty.rpp, line(),
@@ -108,7 +104,7 @@ top::SearchFunctionDecl ::= storage::[StorageClass] fnquals::SpecialSpecifiers b
     | functionTypeExprWithArgs(result, params, variadic, q) -> params
     | functionTypeExprWithoutArgs(result, ids, q) ->
       -- TODO: Raise an error if ids isn't null
-      decorate nilParameters() with {env = top.env; returnType = nothing();}
+      decorate nilParameters() with {env = top.env; returnType = nothing(); position = 0;}
     | _ -> error("mty should always be a functionTypeExpr")
     end;
   local variadic::Boolean =
@@ -170,13 +166,13 @@ top::SearchFunctionDecl ::= storage::[StorageClass] fnquals::SpecialSpecifiers b
   mty.returnType = nothing();
   mty.baseType = bty.typerep;
   mty.typeModifiersIn = bty.typeModifiers;
-  body.env = addEnv(params.defs, mty.env);
+  body.env = addEnv(mty.defs ++ params.functionDefs, mty.env);
   body.expectedResultType = result.typerep;
   body.nextTranslation = stmtTranslation(nullStmt());
 }
 
 function makeSearchFunctionProto
-Decl ::= storage::[StorageClass] id::String bty::Decorated BaseTypeExpr result::Decorated TypeModifierExpr params::Decorated Parameters variadic::Boolean q::Qualifiers 
+Decl ::= storage::StorageClasses id::String bty::Decorated BaseTypeExpr result::Decorated TypeModifierExpr params::Decorated Parameters variadic::Boolean q::Qualifiers 
 {
   return
     ableC_Decl {
@@ -190,7 +186,7 @@ Decl ::= storage::[StorageClass] id::String bty::Decorated BaseTypeExpr result::
               builtinType(_, voidType()) -> nilParameters()
             | _ ->
               consParameters(
-                parameterDecl([], new(bty), new(result), nothingName(), nilAttribute()),
+                parameterDecl(nilStorageClass(), new(bty), new(result), nothingName(), nilAttribute()),
                   nilParameters())
             end}) -> void> _continuation,
         _Bool *_cancelled,
@@ -214,7 +210,6 @@ Parameters ::= p::Decorated Parameters
 abstract production invokeExpr
 top::Expr ::= driver::Name driverArgs::Exprs result::MaybeExpr f::Name a::Exprs
 {
-  propagate substituted;
   top.pp = pp"invoke(${ppImplode(pp", ", (if driverArgs.count > 0 then pp"${driver.pp}(${ppImplode(pp", ", driverArgs.pps)})" else driver.pp) :: (if result.isJust then [result.pp] else []) ++ [pp"${f.pp}(${ppImplode(pp", ", a.pps)})"])})";
   
   driverArgs.returnType = nothing();
@@ -251,7 +246,7 @@ top::Expr ::= driver::Name driverArgs::Exprs result::MaybeExpr f::Name a::Exprs
         [head(lookupValue("task_t", top.env)).typerep,
          pointerType(
            nilQualifier(),
-           refCountClosureType(nilQualifier(), [], builtinType(nilQualifier(), voidType())))],
+           extType(nilQualifier(), refCountClosureType([], builtinType(nilQualifier(), voidType()))))],
         true),
       nilQualifier());
   local isDriverTypeValid::Boolean =
@@ -303,8 +298,11 @@ top::Expr ::= driver::Name driverArgs::Exprs result::MaybeExpr f::Name a::Exprs
               if result.isJust
               then ableC_Parameters { $directTypeExpr{resType} result }
               else nilParameters()}) -> (void) {
+            $Stmt{
+              if result.isJust
+              then ableC_Stmt{ if (!*_is_success) *_result = result; }
+              else nullStmt()}
             *_is_success = 1;
-            $Stmt{if result.isJust then ableC_Stmt{ *_result = result; } else nullStmt()}
             (*_notify_success)();
           };
         task_t _task =
