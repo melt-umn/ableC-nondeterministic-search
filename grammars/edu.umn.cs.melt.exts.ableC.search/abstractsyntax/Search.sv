@@ -4,7 +4,7 @@ imports silver:langutil;
 imports silver:langutil:pp;
 
 imports edu:umn:cs:melt:ableC:abstractsyntax:host;
-imports edu:umn:cs:melt:ableC:abstractsyntax:overloadable;
+imports edu:umn:cs:melt:ableC:abstractsyntax:overloadable as ovrld;
 imports edu:umn:cs:melt:ableC:abstractsyntax:construction;
 imports edu:umn:cs:melt:ableC:abstractsyntax:env;
 imports edu:umn:cs:melt:exts:ableC:refCountClosure:abstractsyntax;
@@ -204,6 +204,33 @@ Parameters ::= p::Decorated Parameters
           parameterDecl(storage, directTypeExpr(mty.typerep), baseTypeExpr(), n, attrs),
           directTypeParameters(t))
     | nilParameters() -> nilParameters()
+    end;
+}
+
+abstract production concreteInvokeExpr
+top::Expr ::= args::Exprs
+{
+  top.pp = pp"invoke(${ppImplode(pp", ", args.pps)})";
+  forwards to
+    case args of
+    -- TODO: Use concrete patterns here
+    | consExpr(declRefExpr(driver), consExpr(result, consExpr(ovrld:callExpr(declRefExpr(f), a), nilExpr()))) ->
+      invokeExpr(driver, nilExpr(), justExpr(result), f, a, location=top.location)
+    | consExpr(declRefExpr(driver), consExpr(callExpr(declRefExpr(f), a), nilExpr())) ->
+      invokeExpr(driver, nilExpr(), nothingExpr(), f, a, location=top.location)
+    | consExpr(callExpr(declRefExpr(driver), driverArgs), consExpr(result, consExpr(ovrld:callExpr(declRefExpr(f), a), nilExpr()))) ->
+      invokeExpr(driver, driverArgs, justExpr(result), f, a, location=top.location)
+    | consExpr(callExpr(declRefExpr(driver), driverArgs), consExpr(ovrld:callExpr(declRefExpr(f), a), nilExpr())) ->
+      invokeExpr(driver, driverArgs, nothingExpr(), f, a, location=top.location)
+    | consExpr(declRefExpr(_), consExpr(_, consExpr(_, nilExpr()))) ->
+      errorExpr([err(top.location, "Argument 3 of invoke must be a function call to an identifier")], location=top.location)
+    | consExpr(declRefExpr(_), consExpr(_, nilExpr())) ->
+      errorExpr([err(top.location, "Argument 2 of invoke must be a function call to an identifier")], location=top.location)
+    | consExpr(_, consExpr(_, consExpr(_, nilExpr()))) ->
+      errorExpr([err(top.location, "Argument 1 of invoke must be an identifier or function call to an identifier")], location=top.location)
+    | consExpr(_, consExpr(_, nilExpr())) ->
+      errorExpr([err(top.location, "Argument 1 of invoke must be an identifier or function call to an identifier")], location=top.location)
+    | a -> errorExpr([err(top.location, s"Wrong number of arguments to invoke (expected 2 or 3, got ${toString(a.count)})")], location=top.location)
     end;
 }
 

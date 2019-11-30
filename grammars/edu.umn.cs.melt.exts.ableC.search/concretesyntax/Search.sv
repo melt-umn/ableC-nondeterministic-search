@@ -69,28 +69,5 @@ concrete productions top::InitialSearchFunctionDefinition_c
 concrete production invokeExpr_c
 top::PrimaryExpr_c ::= 'invoke' '(' args::ArgumentExprList_c ')'
 {
-  local argExprs::Exprs = foldExpr(args.ast);
-  argExprs.env = emptyEnv();
-  argExprs.returnType = nothing();
-
-  top.ast =
-    case argExprs of
-    | consExpr(declRefExpr(driver), consExpr(result, consExpr(callExpr(decExpr(declRefExpr(f)), decExprs(a)), nilExpr()))) ->
-      invokeExpr(driver, nilExpr(), justExpr(result), f, a, location=top.location)
-    | consExpr(declRefExpr(driver), consExpr(callExpr(decExpr(declRefExpr(f)), decExprs(a)), nilExpr())) ->
-      invokeExpr(driver, nilExpr(), nothingExpr(), f, a, location=top.location)
-    | consExpr(callExpr(decExpr(declRefExpr(driver)), decExprs(driverArgs)), consExpr(result, consExpr(callExpr(decExpr(declRefExpr(f)), decExprs(a)), nilExpr()))) ->
-      invokeExpr(driver, driverArgs, justExpr(result), f, a, location=top.location)
-    | consExpr(callExpr(decExpr(declRefExpr(driver)), decExprs(driverArgs)), consExpr(callExpr(decExpr(declRefExpr(f)), decExprs(a)), nilExpr())) ->
-      invokeExpr(driver, driverArgs, nothingExpr(), f, a, location=top.location)
-    | consExpr(declRefExpr(_), consExpr(_, consExpr(_, nilExpr()))) ->
-      errorExpr([err(top.location, "Argument 3 of invoke must be a function call to an identifier")], location=top.location)
-    | consExpr(declRefExpr(_), consExpr(_, nilExpr())) ->
-      errorExpr([err(top.location, "Argument 2 of invoke must be a function call to an identifier")], location=top.location)
-    | consExpr(_, consExpr(_, consExpr(_, nilExpr()))) ->
-      errorExpr([err(top.location, "Argument 1 of invoke must be an identifier or function call to an identifier")], location=top.location)
-    | consExpr(_, consExpr(_, nilExpr())) ->
-      errorExpr([err(top.location, "Argument 1 of invoke must be an identifier or function call to an identifier")], location=top.location)
-    | a -> errorExpr([err(top.location, s"Wrong number of arguments to invoke (expected 2 or 3, got ${toString(a.count)})")], location=top.location)
-    end;
+  top.ast = concreteInvokeExpr(foldExpr(args.ast), location=top.location);
 }
