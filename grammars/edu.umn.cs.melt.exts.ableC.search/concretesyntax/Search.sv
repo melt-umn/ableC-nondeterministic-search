@@ -10,8 +10,8 @@ imports edu:umn:cs:melt:ableC:abstractsyntax:env;
 
 imports edu:umn:cs:melt:exts:ableC:search:abstractsyntax;
 
-marking terminal Search_t 'search' lexer classes {Ckeyword};
-marking terminal Invoke_t 'invoke' lexer classes {Ckeyword};
+marking terminal Search_t 'search' lexer classes {Keyword, Global};
+marking terminal Invoke_t 'invoke' lexer classes {Keyword, Global};
 
 concrete production searchFunctionDecl_c
 top::Declaration_c ::= 'search' f::SearchFunctionDefinition_c
