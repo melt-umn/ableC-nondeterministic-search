@@ -1,51 +1,15 @@
 grammar edu:umn:cs:melt:exts:ableC:search:concretesyntax;
 
-terminal Succeed_t 'succeed' lexer classes {Keyword};
-terminal Fail_t    'fail'    lexer classes {Keyword};
-terminal Spawn_t   'spawn'   lexer classes {Keyword};
-terminal Choice_t  'choice'  lexer classes {Keyword};
-terminal Choose_t  'choose'  lexer classes {Keyword};
-terminal Pick_t    'pick'    lexer classes {Keyword};
-terminal Finally_t 'finally' lexer classes {Keyword}, precedence = 3, association = left;
-terminal Require_t 'require' lexer classes {Keyword};
-
--- Always choose the extension keyword here instead of using Scoped/Global lexer class
--- These are not marking terminals so we don't want lexical shadowing
-disambiguate Identifier_t, TypeName_t, Succeed_t {
-  pluck Succeed_t;
-}
-
-disambiguate Identifier_t, TypeName_t, Spawn_t {
-  pluck Spawn_t;
-}
-
-disambiguate Identifier_t, TypeName_t, Fail_t {
-  pluck Fail_t;
-}
-
-disambiguate Identifier_t, TypeName_t, Choice_t {
-  pluck Choice_t;
-}
-
-disambiguate Identifier_t, TypeName_t, Choose_t {
-  pluck Choose_t;
-}
-
-disambiguate Identifier_t, TypeName_t, Pick_t {
-  pluck Pick_t;
-}
-
-disambiguate Identifier_t, TypeName_t, Finally_t {
-  pluck Finally_t;
-}
-
-disambiguate Identifier_t, Finally_t {
-  pluck Finally_t;
-}
-
-disambiguate Identifier_t, TypeName_t, Require_t {
-  pluck Require_t;
-}
+-- These aren't marking terminals, but make them Global anyway for easier disambiguation from
+-- other extension Scoped marking terminals
+terminal Succeed_t 'succeed' lexer classes {Keyword, Global};
+terminal Fail_t    'fail'    lexer classes {Keyword, Global};
+terminal Spawn_t   'spawn'   lexer classes {Keyword, Global};
+terminal Choice_t  'choice'  lexer classes {Keyword, Global};
+terminal Choose_t  'choose'  lexer classes {Keyword, Global};
+terminal Pick_t    'pick'    lexer classes {Keyword, Global};
+terminal Finally_t 'finally' lexer classes {Keyword, Global}, precedence = 3, association = left;
+terminal Require_t 'require' lexer classes {Keyword, Global};
 
 -- For 'dangling-finally' resolution
 terminal Prec1RCurly_t /}/ precedence = 1, action { context = tail(context); };
