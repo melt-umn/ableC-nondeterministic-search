@@ -1,13 +1,15 @@
 grammar edu:umn:cs:melt:exts:ableC:search:concretesyntax;
 
-terminal Succeed_t 'succeed' lexer classes {Ckeyword};
-terminal Fail_t    'fail'    lexer classes {Ckeyword};
-terminal Spawn_t   'spawn'   lexer classes {Ckeyword};
-terminal Choice_t  'choice'  lexer classes {Ckeyword};
-terminal Choose_t  'choose'  lexer classes {Ckeyword};
-terminal Pick_t    'pick'    lexer classes {Ckeyword};
-terminal Finally_t 'finally' lexer classes {Ckeyword}, precedence = 3, association = left;
-terminal Require_t 'require' lexer classes {Ckeyword};
+-- These aren't marking terminals, but make them Global anyway for easier disambiguation from
+-- other extension Scoped marking terminals
+terminal Succeed_t 'succeed' lexer classes {Keyword, Global};
+terminal Fail_t    'fail'    lexer classes {Keyword, Global};
+terminal Spawn_t   'spawn'   lexer classes {Keyword, Global};
+terminal Choice_t  'choice'  lexer classes {Keyword, Global};
+terminal Choose_t  'choose'  lexer classes {Keyword, Global};
+terminal Pick_t    'pick'    lexer classes {Keyword, Global};
+terminal Finally_t 'finally' lexer classes {Keyword, Global}, precedence = 3, association = left;
+terminal Require_t 'require' lexer classes {Keyword, Global};
 
 -- For 'dangling-finally' resolution
 terminal Prec1RCurly_t /}/ precedence = 1, action { context = tail(context); };
@@ -20,7 +22,7 @@ terminal Prec1RCurly_t /}/ precedence = 1, action { context = tail(context); };
  -}
 terminal DoubleLBrace_t '{{'
   action { context = head(context) :: head(context) :: context; },
-  lexer classes {Ckeyword};
+  lexer classes {Keyword};
 
 nonterminal SearchStmts_c with ast<[SearchStmt]>;
 concrete productions top::SearchStmts_c
