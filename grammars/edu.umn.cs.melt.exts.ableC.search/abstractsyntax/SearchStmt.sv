@@ -29,9 +29,9 @@ top::SearchStmt ::=
 abstract production warnSearchStmt
 top::SearchStmt ::= msg::[Message]
 {
+  propagate defs;
   top.pp = pp"/*err*/";
   top.errors := msg;
-  top.defs := [];
   top.translation = stmtTranslation(warnStmt(msg));
   top.hasContinuation = false;
 }
@@ -39,9 +39,8 @@ top::SearchStmt ::= msg::[Message]
 abstract production nullSearchStmt
 top::SearchStmt ::= 
 {
+  propagate defs, errors;
   top.pp = notext();
-  top.errors := [];
-  top.defs := [];
   top.translation = top.nextTranslation;
   top.hasContinuation = false;
 }
@@ -49,8 +48,8 @@ top::SearchStmt ::=
 abstract production compoundSearchStmt
 top::SearchStmt ::= s::SearchStmt
 {
+  propagate errors;
   top.pp = braces(nestlines(2, ppImplode(line(), top.seqPPs)));
-  top.errors := s.errors;
   top.defs := [];
   
   local directTranslation::Stmt = compoundStmt(s.translation.asStmt);
@@ -73,9 +72,8 @@ top::SearchStmt ::= s::SearchStmt
 abstract production stmtSearchStmt
 top::SearchStmt ::= s::Stmt
 {
+  propagate defs, errors;
   top.pp = s.pp;
-  top.errors := s.errors;
-  top.defs := s.defs;
   top.translation = stmtTranslation(seqStmt(s, top.nextTranslation.asStmt));
   top.hasContinuation = false;
   
@@ -86,8 +84,8 @@ top::SearchStmt ::= s::Stmt
 abstract production succeedSearchStmt
 top::SearchStmt ::= me::MaybeExpr
 {
+  propagate errors;
   top.pp = pp"succeed ${me.pp};";
-  top.errors := me.errors;
   top.errors <-
     case top.expectedResultType, fromMaybe(builtinType(nilQualifier(), voidType()), me.maybeTyperep) of
       builtinType(nilQualifier(), voidType()), builtinType(nilQualifier(), voidType()) -> []
@@ -110,9 +108,8 @@ top::SearchStmt ::= me::MaybeExpr
 abstract production failSearchStmt
 top::SearchStmt ::= 
 {
+  propagate defs, errors;
   top.pp = pp"fail;";
-  top.errors := [];
-  top.defs := [];
   top.translation = stmtTranslation(nullStmt());
   top.hasContinuation = true;
 }
@@ -120,8 +117,8 @@ top::SearchStmt ::=
 abstract production spawnSearchStmt
 top::SearchStmt ::= s::SearchStmt
 {
+  propagate errors;
   top.pp = ppConcat([pp"spawn", line(), nestlines(2, ppImplode(line(), top.seqPPs))]);
-  top.errors := s.errors;
   top.defs := [];
   
   top.translation = stmtTranslation(s.translation.asStmtLazy);
@@ -132,10 +129,10 @@ top::SearchStmt ::= s::SearchStmt
 abstract production seqSearchStmt
 top::SearchStmt ::= h::SearchStmt t::SearchStmt
 {
+  propagate errors;
   top.pp = braces(nestlines(2, ppImplode(line(), top.seqPPs)));
   top.seqPPs = h.seqPPs ++ t.seqPPs;
   top.seqs = h.seqs ++ t.seqs;
-  top.errors := h.errors ++ t.errors;
   top.defs :=
     (if t.hasContinuation then foldr(consDefs, nilDefs(), h.defs).asCaptured else h.defs) ++
     t.defs;
@@ -154,10 +151,10 @@ top::SearchStmt ::= h::SearchStmt t::SearchStmt
 abstract production choiceSearchStmt
 top::SearchStmt ::= h::SearchStmt t::SearchStmt
 {
+  propagate errors;
   top.pp = pp"choice {${nestlines(2, ppImplode(line(), top.choicePPs))}}";
   top.choicePPs = h.choicePPs ++ t.choicePPs;
   top.choices = h.choices ++ t.choices;
-  top.errors := h.errors ++ t.errors;
   top.defs := [];
   
   top.translation =
@@ -175,10 +172,10 @@ top::SearchStmt ::= h::SearchStmt t::SearchStmt
 abstract production choiceForSearchStmt
 top::SearchStmt ::= i::MaybeExpr  c::MaybeExpr  s::MaybeExpr  b::SearchStmt
 {
+  propagate errors;
   top.pp = 
     ppConcat([text("choice for"), parens(ppConcat([i.pp, semi(), space(), c.pp, semi(), space(), s.pp])), line(),
       braces(nestlines(2, b.pp)) ]);
-  top.errors := i.errors ++ c.errors ++ s.errors ++ b.errors;
   top.defs := [];
   
   top.translation =
@@ -203,10 +200,10 @@ top::SearchStmt ::= i::MaybeExpr  c::MaybeExpr  s::MaybeExpr  b::SearchStmt
 abstract production choiceForDeclSearchStmt
 top::SearchStmt ::= i::Decl  c::MaybeExpr  s::MaybeExpr  b::SearchStmt
 {
+  propagate errors;
   top.pp = 
     ppConcat([text("choice for"), parens(ppConcat([i.pp, semi(), space(), c.pp, semi(), space(), s.pp])), line(),
       braces(nestlines(2, b.pp)) ]);
-  top.errors := i.errors ++ c.errors ++ s.errors ++ b.errors;
   top.defs := [];
   
   top.translation =
@@ -232,9 +229,8 @@ top::SearchStmt ::= i::Decl  c::MaybeExpr  s::MaybeExpr  b::SearchStmt
 abstract production finallySearchStmt
 top::SearchStmt ::= s::SearchStmt f::Stmt
 {
+  propagate defs, errors;
   top.pp = pp"${s.pp} finally ${f.pp}";
-  top.errors := s.errors ++ f.errors;
-  top.defs := s.defs ++ f.defs;
   
   top.translation = stmtTranslation(seqStmt(s.translation.asStmt, f));
   s.nextTranslation = top.nextTranslation;
@@ -255,8 +251,8 @@ top::SearchStmt ::= c::Expr t::SearchStmt
 abstract production ifThenElseSearchStmt
 top::SearchStmt ::= c::Expr t::SearchStmt e::SearchStmt
 {
+  propagate errors;
   top.pp = pp"if (${c.pp} {${cat(line(), nestlines(2, t.pp))}} else {${cat(line(), nestlines(2, t.pp))}}";
-  top.errors := c.errors ++ t.errors ++ e.errors;
   top.errors <-
     if c.typerep.defaultFunctionArrayLvalueConversion.isScalarType then []
     else [err(c.location, "If condition must be scalar type, instead it is " ++ showType(c.typerep))];
@@ -322,8 +318,8 @@ top::SearchStmt ::= lhs::Expr f::Name a::Exprs
 abstract production chooseDeclSearchStmt
 top::SearchStmt ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name f::Name a::Exprs
 {
+  propagate errors;
   top.pp = pp"choose ${bty.pp} ${mty.lpp}${id.pp}${mty.rpp} = ${f.pp}(${ppImplode(pp", ", a.pps)});";
-  top.errors := bty.errors ++ mty.errors ++ a.errors;
   top.errors <- id.valueRedeclarationCheckNoCompatible;
   top.errors <- f.searchFunctionLookupCheck;
   top.errors <-
@@ -385,10 +381,10 @@ top::SearchStmt ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name f::Name a::
 abstract production chooseSucceedSearchStmt
 top::SearchStmt ::= f::Name a::Exprs
 {
+  propagate errors;
   top.pp = pp"choose succeed ${f.pp}(${ppImplode(pp", ", a.pps)});";
   top.seqPPs = [top.pp];
   top.choicePPs = [top.pp];
-  top.errors := a.errors;
   top.errors <- f.searchFunctionLookupCheck;
   top.errors <-
     case top.expectedResultType, f.searchFunctionItem.resultType of
@@ -476,8 +472,8 @@ top::SearchStmt ::= lhs::Expr f::Name a::Exprs
 abstract production pickDeclSearchStmt
 top::SearchStmt ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name f::Name a::Exprs
 {
+  propagate errors;
   top.pp = pp"pick ${bty.pp} ${mty.lpp}${id.pp}${mty.rpp} = ${f.pp}(${ppImplode(pp", ", a.pps)});";
-  top.errors := bty.errors ++ mty.errors ++ a.errors;
   top.errors <- id.valueRedeclarationCheckNoCompatible;
   top.errors <- f.searchFunctionLookupCheck;
   top.errors <-
@@ -548,12 +544,11 @@ top::SearchStmt ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name f::Name a::
 abstract production requireSearchStmt
 top::SearchStmt ::= c::Expr
 {
+  propagate errors, defs;
   top.pp = pp"require ${c.pp};";
-  top.errors := c.errors;
   top.errors <-
     if c.typerep.defaultFunctionArrayLvalueConversion.isScalarType then []
     else [err(c.location, "require condition must be scalar type, instead it is " ++ showType(c.typerep))];
-  top.defs := c.defs;
   top.translation = stmtTranslation(ifStmtNoElse(c, top.nextTranslation.asStmt));
   top.hasContinuation = false;
   
