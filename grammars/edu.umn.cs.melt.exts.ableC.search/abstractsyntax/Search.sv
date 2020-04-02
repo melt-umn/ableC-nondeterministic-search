@@ -4,7 +4,7 @@ imports silver:langutil;
 imports silver:langutil:pp;
 
 imports edu:umn:cs:melt:ableC:abstractsyntax:host;
-imports edu:umn:cs:melt:ableC:abstractsyntax:overloadable;
+imports edu:umn:cs:melt:ableC:abstractsyntax:overloadable as ovrld;
 imports edu:umn:cs:melt:ableC:abstractsyntax:construction;
 imports edu:umn:cs:melt:ableC:abstractsyntax:env;
 imports edu:umn:cs:melt:exts:ableC:refCountClosure:abstractsyntax;
@@ -82,7 +82,7 @@ top::SearchFunctionDecl ::= storage::StorageClasses bty::BaseTypeExpr mty::TypeM
   mty.env = openScopeEnv(addEnv(bty.defs, bty.env));
   mty.returnType = nothing();
   mty.baseType = bty.typerep;
-  mty.typeModifiersIn = bty.typeModifiers;
+  mty.typeModifierIn = bty.typeModifier;
 }
 
 abstract production searchFunctionDecl
@@ -165,7 +165,7 @@ top::SearchFunctionDecl ::= storage::StorageClasses fnquals::SpecialSpecifiers b
   mty.env = addEnv(implicitDefs, openScopeEnv(addEnv(searchFunctionDef(id.name, searchFunctionItem(top)) :: bty.defs, bty.env)));
   mty.returnType = nothing();
   mty.baseType = bty.typerep;
-  mty.typeModifiersIn = bty.typeModifiers;
+  mty.typeModifierIn = bty.typeModifier;
   body.env = addEnv(mty.defs ++ params.functionDefs, mty.env);
   body.expectedResultType = result.typerep;
   body.nextTranslation = stmtTranslation(nullStmt());
@@ -199,11 +199,38 @@ Parameters ::= p::Decorated Parameters
 {
   return
     case p of
-      consParameters(parameterDecl(storage, bty, mty, n, attrs), t) ->
+    | consParameters(parameterDecl(storage, bty, mty, n, attrs), t) ->
         consParameters(
           parameterDecl(storage, directTypeExpr(mty.typerep), baseTypeExpr(), n, attrs),
           directTypeParameters(t))
     | nilParameters() -> nilParameters()
+    end;
+}
+
+abstract production concreteInvokeExpr
+top::Expr ::= args::Exprs
+{
+  top.pp = pp"invoke(${ppImplode(pp", ", args.pps)})";
+  forwards to
+    case args of
+    -- TODO: Use concrete patterns here
+    | consExpr(declRefExpr(driver), consExpr(result, consExpr(ovrld:callExpr(declRefExpr(f), a), nilExpr()))) ->
+      invokeExpr(driver, nilExpr(), justExpr(result), f, a, location=top.location)
+    | consExpr(declRefExpr(driver), consExpr(callExpr(declRefExpr(f), a), nilExpr())) ->
+      invokeExpr(driver, nilExpr(), nothingExpr(), f, a, location=top.location)
+    | consExpr(callExpr(declRefExpr(driver), driverArgs), consExpr(result, consExpr(ovrld:callExpr(declRefExpr(f), a), nilExpr()))) ->
+      invokeExpr(driver, driverArgs, justExpr(result), f, a, location=top.location)
+    | consExpr(callExpr(declRefExpr(driver), driverArgs), consExpr(ovrld:callExpr(declRefExpr(f), a), nilExpr())) ->
+      invokeExpr(driver, driverArgs, nothingExpr(), f, a, location=top.location)
+    | consExpr(declRefExpr(_), consExpr(_, consExpr(_, nilExpr()))) ->
+      errorExpr([err(top.location, "Argument 3 of invoke must be a function call to an identifier")], location=top.location)
+    | consExpr(declRefExpr(_), consExpr(_, nilExpr())) ->
+      errorExpr([err(top.location, "Argument 2 of invoke must be a function call to an identifier")], location=top.location)
+    | consExpr(_, consExpr(_, consExpr(_, nilExpr()))) ->
+      errorExpr([err(top.location, "Argument 1 of invoke must be an identifier or function call to an identifier")], location=top.location)
+    | consExpr(_, consExpr(_, nilExpr())) ->
+      errorExpr([err(top.location, "Argument 1 of invoke must be an identifier or function call to an identifier")], location=top.location)
+    | a -> errorExpr([err(top.location, s"Wrong number of arguments to invoke (expected 2 or 3, got ${toString(a.count)})")], location=top.location)
     end;
 }
 
@@ -215,17 +242,20 @@ top::Expr ::= driver::Name driverArgs::Exprs result::MaybeExpr f::Name a::Exprs
   driverArgs.returnType = nothing();
   driverArgs.expectedTypes =
     case driver.valueItem.typerep of
-      functionType(_, protoFunctionType(parameterTypes, _), _) -> tail(tail(parameterTypes)) 
+    | functionType(_, protoFunctionType(parameterTypes, _), _) -> tail(tail(parameterTypes))
     | _ -> []
     end;
   driverArgs.argumentPosition = 1;
   driverArgs.callExpr = decorate declRefExpr(f, location=f.location) with {env = top.env; returnType = nothing();};
   driverArgs.callVariadic = 
     case driver.valueItem.typerep of
-      functionType(_, protoFunctionType(_, variadic), _) -> variadic 
+    | functionType(_, protoFunctionType(_, variadic), _) -> variadic
     | _ -> true
     end;
+    
+  result.env = addEnv(driverArgs.defs, driverArgs.env);
   
+  a.env = addEnv(result.defs, result.env);
   a.returnType = nothing();
   a.expectedTypes = f.searchFunctionItem.parameterTypes;
   a.argumentPosition = 1;
@@ -308,7 +338,7 @@ top::Expr ::= driver::Name driverArgs::Exprs result::MaybeExpr f::Name a::Exprs
         task_t _task =
           refcount::lambda (task_buffer_t *const _schedule) ->
             ($name{"_search_function_" ++ f.name}(
-               _schedule, _success_continuation, (void*)0, $Exprs{a}));
+               _schedule, _success_continuation, (void*)0, $Exprs{decExprs(a)}));
         $Name{driver}(_task, _notify_success, $Exprs{driverArgs});
         *_is_success;})
     };
