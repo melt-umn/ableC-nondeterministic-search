@@ -133,7 +133,7 @@ top::Name ::= n::String
 }
 
 -- Make all non-global value items in the env const
-synthesized attribute asCaptured<a>::a;
+functor attribute asCaptured;
 
 attribute asCaptured<Decorated Env> occurs on Env;
 
@@ -147,7 +147,7 @@ top::Env ::= d::Defs  e::Decorated Env
 {
   top.asCaptured =
     case e of
-      emptyEnv_i() -> top -- This is the global scope, everything here stays non-const
+    | emptyEnv_i() -> top -- This is the global scope, everything here stays non-const
     | _ -> addEnv(d.asCaptured, e.asCaptured)
     end;
 }
@@ -186,7 +186,7 @@ top::Defs ::=
   top.asCaptured = [];
 }
 
-attribute asCaptured<Def> occurs on Def;
+attribute asCaptured occurs on Def;
 
 aspect default production
 top::Def ::=
@@ -200,7 +200,7 @@ top::Def ::= s::String v::ValueItem
   propagate asCaptured;
 }
 
-attribute asCaptured<ValueItem> occurs on ValueItem;
+attribute asCaptured occurs on ValueItem;
 
 aspect default production
 top::ValueItem ::= 
