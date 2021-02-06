@@ -79,6 +79,8 @@ top::SearchStmt ::= s::Stmt
   
   s.env = addEnv(s.functionDefs, top.env);
   s.returnType = nothing();
+  s.breakValid = false;
+  s.continueValid = false;
 }
 
 abstract production succeedSearchStmt
@@ -103,6 +105,8 @@ top::SearchStmt ::= me::MaybeExpr
   top.hasContinuation = true;
   
   me.returnType = nothing();
+  me.breakValid = false;
+  me.continueValid = false;
 }
 
 abstract production failSearchStmt
@@ -195,6 +199,12 @@ top::SearchStmt ::= i::MaybeExpr  c::MaybeExpr  s::MaybeExpr  b::SearchStmt
   i.returnType = nothing();
   c.returnType = nothing();
   s.returnType = nothing();
+  i.breakValid = false;
+  c.breakValid = false;
+  s.breakValid = false;
+  i.continueValid = false;
+  c.continueValid = false;
+  s.continueValid = false;
 }
 
 abstract production choiceForDeclSearchStmt
@@ -224,6 +234,12 @@ top::SearchStmt ::= i::Decl  c::MaybeExpr  s::MaybeExpr  b::SearchStmt
   i.returnType = nothing();
   c.returnType = nothing();
   s.returnType = nothing();
+  i.breakValid = false;
+  c.breakValid = false;
+  s.breakValid = false;
+  i.continueValid = false;
+  c.continueValid = false;
+  s.continueValid = false;
 }
 
 abstract production finallySearchStmt
@@ -239,6 +255,8 @@ top::SearchStmt ::= s::SearchStmt f::Stmt
   
   f.env = addEnv(s.defs, s.env);
   f.returnType = nothing();
+  f.breakValid = false;
+  f.continueValid = false;
 }
 
 abstract production ifThenSearchStmt
@@ -276,6 +294,8 @@ top::SearchStmt ::= c::Expr t::SearchStmt e::SearchStmt
   top.hasContinuation = t.hasContinuation || e.hasContinuation;
   
   c.returnType = nothing();
+  c.breakValid = false;
+  c.continueValid = false;
 }
 
 abstract production chooseSearchStmt
@@ -365,16 +385,25 @@ top::SearchStmt ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name f::Name a::
   d.givenStorageClasses = nilStorageClass();
   d.givenAttributes = nilAttribute();
   d.returnType = nothing();
+  d.breakValid = false;
+  d.continueValid = false;
   
   bty.givenRefId = nothing();
   bty.returnType = nothing();
+  bty.breakValid = false;
+  bty.continueValid = false;
   mty.baseType = bty.typerep;
   mty.typeModifierIn = bty.typeModifier;
   mty.returnType = nothing();
+  mty.breakValid = false;
+  mty.continueValid = false;
+
   a.returnType = nothing();
+  a.breakValid = false;
+  a.continueValid = false;
   a.expectedTypes = f.searchFunctionItem.parameterTypes;
   a.argumentPosition = 1;
-  a.callExpr = decorate declRefExpr(f, location=f.location) with {env = top.env; returnType = nothing();};
+  a.callExpr = decorate declRefExpr(f, location=f.location) with {env = top.env; returnType = nothing(); breakValid = false; continueValid = false;};
   a.callVariadic = false;
 }
 
@@ -406,9 +435,11 @@ top::SearchStmt ::= f::Name a::Exprs
   top.hasContinuation = true;
   
   a.returnType = nothing();
+  a.breakValid = false;
+  a.continueValid = false;
   a.expectedTypes = f.searchFunctionItem.parameterTypes;
   a.argumentPosition = 1;
-  a.callExpr = decorate declRefExpr(f, location=f.location) with {env = top.env; returnType = nothing();};
+  a.callExpr = decorate declRefExpr(f, location=f.location) with {env = top.env; returnType = nothing(); breakValid = false; continueValid = false;};
   a.callVariadic = false;
 }
 
@@ -528,16 +559,24 @@ top::SearchStmt ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name f::Name a::
   d.givenStorageClasses = nilStorageClass();
   d.givenAttributes = nilAttribute();
   d.returnType = nothing();
+  d.breakValid = false;
+  d.continueValid = false;
   
   bty.givenRefId = nothing();
   bty.returnType = nothing();
+  bty.breakValid = false;
+  bty.continueValid = false;
   mty.baseType = bty.typerep;
   mty.typeModifierIn = bty.typeModifier;
   mty.returnType = nothing();
+  mty.breakValid = false;
+  mty.continueValid = false;
   a.returnType = nothing();
+  a.breakValid = false;
+  a.continueValid = false;
   a.expectedTypes = f.searchFunctionItem.parameterTypes;
   a.argumentPosition = 1;
-  a.callExpr = decorate declRefExpr(f, location=f.location) with {env = top.env; returnType = nothing();};
+  a.callExpr = decorate declRefExpr(f, location=f.location) with {env = top.env; returnType = nothing(); breakValid = false; continueValid = false;};
   a.callVariadic = false;
 }
 
@@ -553,4 +592,6 @@ top::SearchStmt ::= c::Expr
   top.hasContinuation = false;
   
   c.returnType = nothing();
+  c.breakValid = false;
+  c.continueValid = false;
 }
