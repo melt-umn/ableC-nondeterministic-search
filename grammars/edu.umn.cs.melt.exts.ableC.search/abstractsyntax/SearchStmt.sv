@@ -78,7 +78,7 @@ top::SearchStmt ::= s::Stmt
   top.hasContinuation = false;
   
   s.env = addEnv(s.functionDefs, top.env);
-  s.controlStmtContext = initialControlStmtContext;
+  s.controlStmtContext = controlStmtContext(nothing(), false, false, tm:add(s.labelDefs, tm:empty()));
 }
 
 abstract production succeedSearchStmt

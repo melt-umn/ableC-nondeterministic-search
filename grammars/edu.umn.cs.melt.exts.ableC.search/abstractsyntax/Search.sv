@@ -2,6 +2,7 @@ grammar edu:umn:cs:melt:exts:ableC:search:abstractsyntax;
 
 imports silver:langutil;
 imports silver:langutil:pp;
+imports silver:util:treemap as tm;
 
 imports edu:umn:cs:melt:ableC:abstractsyntax:host;
 imports edu:umn:cs:melt:ableC:abstractsyntax:overloadable as ovrld;
