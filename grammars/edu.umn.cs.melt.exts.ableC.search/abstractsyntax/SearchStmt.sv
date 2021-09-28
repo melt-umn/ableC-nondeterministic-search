@@ -78,7 +78,7 @@ top::SearchStmt ::= s::Stmt
   top.hasContinuation = false;
   
   s.env = addEnv(s.functionDefs, top.env);
-  s.returnType = nothing();
+  s.controlStmtContext = controlStmtContext(nothing(), false, false, tm:add(s.labelDefs, tm:empty()));
 }
 
 abstract production succeedSearchStmt
@@ -102,7 +102,7 @@ top::SearchStmt ::= me::MaybeExpr
     else closureRefTranslation(name("_continuation", location=builtin));
   top.hasContinuation = true;
   
-  me.returnType = nothing();
+  me.controlStmtContext = initialControlStmtContext;
 }
 
 abstract production failSearchStmt
@@ -192,9 +192,10 @@ top::SearchStmt ::= i::MaybeExpr  c::MaybeExpr  s::MaybeExpr  b::SearchStmt
   c.env = addEnv(i.defs, i.env);
   s.env = addEnv(c.defs, c.env);
   b.env = addEnv(s.defs, s.env);
-  i.returnType = nothing();
-  c.returnType = nothing();
-  s.returnType = nothing();
+  
+  i.controlStmtContext = initialControlStmtContext;
+  c.controlStmtContext = initialControlStmtContext;
+  s.controlStmtContext = initialControlStmtContext;
 }
 
 abstract production choiceForDeclSearchStmt
@@ -221,9 +222,10 @@ top::SearchStmt ::= i::Decl  c::MaybeExpr  s::MaybeExpr  b::SearchStmt
   s.env = addEnv(c.defs, c.env);
   b.env = addEnv(s.defs, s.env);
   i.isTopLevel = false;
-  i.returnType = nothing();
-  c.returnType = nothing();
-  s.returnType = nothing();
+  
+  i.controlStmtContext = initialControlStmtContext;
+  c.controlStmtContext = initialControlStmtContext;
+  s.controlStmtContext = initialControlStmtContext;
 }
 
 abstract production finallySearchStmt
@@ -238,7 +240,7 @@ top::SearchStmt ::= s::SearchStmt f::Stmt
   top.hasContinuation = s.hasContinuation;
   
   f.env = addEnv(s.defs, s.env);
-  f.returnType = nothing();
+  f.controlStmtContext = initialControlStmtContext;
 }
 
 abstract production ifThenSearchStmt
@@ -275,7 +277,7 @@ top::SearchStmt ::= c::Expr t::SearchStmt e::SearchStmt
   e.nextTranslation = t.nextTranslation;
   top.hasContinuation = t.hasContinuation || e.hasContinuation;
   
-  c.returnType = nothing();
+  c.controlStmtContext = initialControlStmtContext;
 }
 
 abstract production chooseSearchStmt
@@ -364,17 +366,18 @@ top::SearchStmt ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name f::Name a::
   d.isTypedef = false;
   d.givenStorageClasses = nilStorageClass();
   d.givenAttributes = nilAttribute();
-  d.returnType = nothing();
+  d.controlStmtContext = initialControlStmtContext;
   
   bty.givenRefId = nothing();
-  bty.returnType = nothing();
+  bty.controlStmtContext = initialControlStmtContext;
   mty.baseType = bty.typerep;
   mty.typeModifierIn = bty.typeModifier;
-  mty.returnType = nothing();
-  a.returnType = nothing();
+  mty.controlStmtContext = initialControlStmtContext;
+
+  a.controlStmtContext = initialControlStmtContext;
   a.expectedTypes = f.searchFunctionItem.parameterTypes;
   a.argumentPosition = 1;
-  a.callExpr = decorate declRefExpr(f, location=f.location) with {env = top.env; returnType = nothing();};
+  a.callExpr = decorate declRefExpr(f, location=f.location) with {env = top.env; controlStmtContext = initialControlStmtContext; };
   a.callVariadic = false;
 }
 
@@ -405,10 +408,10 @@ top::SearchStmt ::= f::Name a::Exprs
       });
   top.hasContinuation = true;
   
-  a.returnType = nothing();
+  a.controlStmtContext = initialControlStmtContext;
   a.expectedTypes = f.searchFunctionItem.parameterTypes;
   a.argumentPosition = 1;
-  a.callExpr = decorate declRefExpr(f, location=f.location) with {env = top.env; returnType = nothing();};
+  a.callExpr = decorate declRefExpr(f, location=f.location) with {env = top.env; controlStmtContext = initialControlStmtContext; };
   a.callVariadic = false;
 }
 
@@ -527,17 +530,17 @@ top::SearchStmt ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name f::Name a::
   d.isTypedef = false;
   d.givenStorageClasses = nilStorageClass();
   d.givenAttributes = nilAttribute();
-  d.returnType = nothing();
+  d.controlStmtContext = initialControlStmtContext;
   
   bty.givenRefId = nothing();
-  bty.returnType = nothing();
+  bty.controlStmtContext = initialControlStmtContext;
   mty.baseType = bty.typerep;
   mty.typeModifierIn = bty.typeModifier;
-  mty.returnType = nothing();
-  a.returnType = nothing();
+  mty.controlStmtContext = initialControlStmtContext;
+  a.controlStmtContext = initialControlStmtContext;
   a.expectedTypes = f.searchFunctionItem.parameterTypes;
   a.argumentPosition = 1;
-  a.callExpr = decorate declRefExpr(f, location=f.location) with {env = top.env; returnType = nothing();};
+  a.callExpr = decorate declRefExpr(f, location=f.location) with {env = top.env; controlStmtContext = initialControlStmtContext; };
   a.callVariadic = false;
 }
 
@@ -552,5 +555,5 @@ top::SearchStmt ::= c::Expr
   top.translation = stmtTranslation(ifStmtNoElse(c, top.nextTranslation.asStmt));
   top.hasContinuation = false;
   
-  c.returnType = nothing();
+  c.controlStmtContext = initialControlStmtContext;
 }

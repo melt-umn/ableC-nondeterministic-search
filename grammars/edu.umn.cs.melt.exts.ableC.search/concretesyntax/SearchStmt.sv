@@ -102,7 +102,7 @@ concrete productions top::SearchStmt_c
   {
     local ast::Expr = e.ast;
     ast.env = emptyEnv();
-    ast.returnType = nothing();
+    ast.controlStmtContext = initialControlStmtContext;
     top.ast =
       case ast of
         callExpr(declRefExpr(f), args) ->
@@ -116,7 +116,7 @@ concrete productions top::SearchStmt_c
   {
     local ast::Expr = e.ast;
     ast.env = emptyEnv();
-    ast.returnType = nothing();
+    ast.controlStmtContext = initialControlStmtContext;
     top.ast =
       case ast of
         callExpr(declRefExpr(f), args) ->
@@ -180,7 +180,7 @@ concrete productions top::SearchStmt_c
   {
     local ast::Expr = e.ast;
     ast.env = emptyEnv();
-    ast.returnType = nothing();
+    ast.controlStmtContext = initialControlStmtContext;
     top.ast =
       case ast of
         callExpr(declRefExpr(f), args) ->
@@ -194,7 +194,7 @@ concrete productions top::SearchStmt_c
   {
     local ast::Expr = e.ast;
     ast.env = emptyEnv();
-    ast.returnType = nothing();
+    ast.controlStmtContext = initialControlStmtContext;
     top.ast =
       case ast of
         callExpr(declRefExpr(f), args) ->

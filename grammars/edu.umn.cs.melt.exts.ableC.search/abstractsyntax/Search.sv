@@ -2,6 +2,7 @@ grammar edu:umn:cs:melt:exts:ableC:search:abstractsyntax;
 
 imports silver:langutil;
 imports silver:langutil:pp;
+imports silver:util:treemap as tm;
 
 imports edu:umn:cs:melt:ableC:abstractsyntax:host;
 imports edu:umn:cs:melt:ableC:abstractsyntax:overloadable as ovrld;
@@ -53,7 +54,7 @@ top::SearchFunctionDecl ::= storage::StorageClasses bty::BaseTypeExpr mty::TypeM
     | functionTypeExprWithArgs(result, params, variadic, q) -> params
     | functionTypeExprWithoutArgs(result, ids, q) ->
       -- TODO: Raise an error if ids isn't null
-      decorate nilParameters() with {env = top.env; returnType = nothing(); position = 0;}
+      decorate nilParameters() with {env = top.env; controlStmtContext = initialControlStmtContext; position = 0;}
     | _ -> error("mty should always be a functionTypeExpr")
     end;
   local variadic::Boolean =
@@ -76,11 +77,11 @@ top::SearchFunctionDecl ::= storage::StorageClasses bty::BaseTypeExpr mty::TypeM
   top.resultType = result.typerep;
   top.parameterTypes = params.typereps;
   top.sourceLocation = id.location;
-  
-  bty.returnType = nothing();
+ 
+  bty.controlStmtContext = initialControlStmtContext;
   bty.givenRefId = nothing();
   mty.env = openScopeEnv(addEnv(bty.defs, bty.env));
-  mty.returnType = nothing();
+  mty.controlStmtContext = initialControlStmtContext;
   mty.baseType = bty.typerep;
   mty.typeModifierIn = bty.typeModifier;
 }
@@ -104,7 +105,7 @@ top::SearchFunctionDecl ::= storage::StorageClasses fnquals::SpecialSpecifiers b
     | functionTypeExprWithArgs(result, params, variadic, q) -> params
     | functionTypeExprWithoutArgs(result, ids, q) ->
       -- TODO: Raise an error if ids isn't null
-      decorate nilParameters() with {env = top.env; returnType = nothing(); position = 0;}
+      decorate nilParameters() with {env = top.env; controlStmtContext = initialControlStmtContext; position = 0;}
     | _ -> error("mty should always be a functionTypeExpr")
     end;
   local variadic::Boolean =
@@ -160,10 +161,10 @@ top::SearchFunctionDecl ::= storage::StorageClasses fnquals::SpecialSpecifiers b
           signedType(charType()))));
   implicitDefs <- map(valueDef(_, nameValueItem), ["__func__", "__FUNCTION__", "__PRETTY_FUNCTION__"]);
   
-  bty.returnType = nothing();
+  bty.controlStmtContext = initialControlStmtContext;
   bty.givenRefId = nothing();
   mty.env = addEnv(implicitDefs, openScopeEnv(addEnv(searchFunctionDef(id.name, searchFunctionItem(top)) :: bty.defs, bty.env)));
-  mty.returnType = nothing();
+  mty.controlStmtContext = initialControlStmtContext;
   mty.baseType = bty.typerep;
   mty.typeModifierIn = bty.typeModifier;
   body.env = addEnv(mty.defs ++ params.functionDefs, mty.env);
@@ -239,14 +240,14 @@ top::Expr ::= driver::Name driverArgs::Exprs result::MaybeExpr f::Name a::Exprs
 {
   top.pp = pp"invoke(${ppImplode(pp", ", (if driverArgs.count > 0 then pp"${driver.pp}(${ppImplode(pp", ", driverArgs.pps)})" else driver.pp) :: (if result.isJust then [result.pp] else []) ++ [pp"${f.pp}(${ppImplode(pp", ", a.pps)})"])})";
   
-  driverArgs.returnType = nothing();
+  driverArgs.controlStmtContext = initialControlStmtContext;
   driverArgs.expectedTypes =
     case driver.valueItem.typerep of
     | functionType(_, protoFunctionType(parameterTypes, _), _) -> tail(tail(parameterTypes))
     | _ -> []
     end;
   driverArgs.argumentPosition = 1;
-  driverArgs.callExpr = decorate declRefExpr(f, location=f.location) with {env = top.env; returnType = nothing();};
+  driverArgs.callExpr = decorate declRefExpr(f, location=f.location) with {env = top.env; controlStmtContext = initialControlStmtContext; };
   driverArgs.callVariadic = 
     case driver.valueItem.typerep of
     | functionType(_, protoFunctionType(_, variadic), _) -> variadic
@@ -256,10 +257,10 @@ top::Expr ::= driver::Name driverArgs::Exprs result::MaybeExpr f::Name a::Exprs
   result.env = addEnv(driverArgs.defs, driverArgs.env);
   
   a.env = addEnv(result.defs, result.env);
-  a.returnType = nothing();
+  a.controlStmtContext = initialControlStmtContext;
   a.expectedTypes = f.searchFunctionItem.parameterTypes;
   a.argumentPosition = 1;
-  a.callExpr = decorate declRefExpr(f, location=f.location) with {env = top.env; returnType = nothing();};
+  a.callExpr = decorate declRefExpr(f, location=f.location) with {env = top.env; controlStmtContext = initialControlStmtContext; };
   a.callVariadic = false;
   
   local localBaseErrors::[Message] =
