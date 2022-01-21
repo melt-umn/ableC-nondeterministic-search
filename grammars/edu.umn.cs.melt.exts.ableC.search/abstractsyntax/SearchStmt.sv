@@ -290,7 +290,7 @@ top::SearchStmt ::= f::Name a::Exprs
     chooseDeclSearchStmt(
       directTypeExpr(f.searchFunctionItem.resultType),
       baseTypeExpr(),
-      name(s"_result_${toString(genIntT())}", location=builtin),
+      name(s"_result_${toString(genInt())}", location=builtin),
       f, a,
       location=top.location);
 }
@@ -302,7 +302,7 @@ top::SearchStmt ::= lhs::Expr f::Name a::Exprs
   top.seqPPs = [top.pp];
   top.choicePPs = [top.pp];
   
-  local resultName::Name = name(s"_result_${toString(genIntT())}", location=builtin);
+  local resultName::Name = name(s"_result_${toString(genInt())}", location=builtin);
   forwards to
     seqSearchStmt(
       chooseDeclSearchStmt(
@@ -425,7 +425,7 @@ top::SearchStmt ::= f::Name a::Exprs
     pickDeclSearchStmt(
       directTypeExpr(f.searchFunctionItem.resultType),
       baseTypeExpr(),
-      name(s"_result_${toString(genIntT())}", location=builtin),
+      name(s"_result_${toString(genInt())}", location=builtin),
       f, a,
       location=top.location);
 }
@@ -437,7 +437,7 @@ top::SearchStmt ::= f::Name a::Exprs
   top.seqPPs = [top.pp];
   top.choicePPs = [top.pp];
   
-  local resultName::Name = name(s"_result_${toString(genIntT())}", location=builtin);
+  local resultName::Name = name(s"_result_${toString(genInt())}", location=builtin);
   forwards to
     seqSearchStmt(
       pickDeclSearchStmt(
@@ -457,7 +457,7 @@ top::SearchStmt ::= lhs::Expr f::Name a::Exprs
   top.seqPPs = [top.pp];
   top.choicePPs = [top.pp];
   
-  local resultName::Name = name(s"_result_${toString(genIntT())}", location=builtin);
+  local resultName::Name = name(s"_result_${toString(genInt())}", location=builtin);
   forwards to
     seqSearchStmt(
       pickDeclSearchStmt(
@@ -491,7 +491,7 @@ top::SearchStmt ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name f::Name a::
   
   top.defs := d.defs;
   
-  local pickId::String = s"_pick_${toString(genIntT())}";
+  local pickId::String = s"_pick_${toString(genInt())}";
   top.translation =
     stmtTranslation(
       ableC_Stmt {

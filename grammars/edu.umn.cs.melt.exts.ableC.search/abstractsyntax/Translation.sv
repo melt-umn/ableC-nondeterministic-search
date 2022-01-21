@@ -37,7 +37,7 @@ abstract production closureTranslation_i
 top::Translation ::= e::Expr
 {
   top.asClosure = e;
-  local tmpId::String = "_task_" ++ toString(genIntT());
+  local tmpId::String = "_task_" ++ toString(genInt());
   top.asStmt =
     ableC_Stmt {
       proto_typedef task_t;
