@@ -1,6 +1,6 @@
 grammar edu:umn:cs:melt:exts:ableC:search:abstractsyntax;
 
-autocopy attribute expectedResultType::Type;
+inherited attribute expectedResultType::Type;
 
 synthesized attribute seqPPs::[Document];
 synthesized attribute choicePPs::[Document];
