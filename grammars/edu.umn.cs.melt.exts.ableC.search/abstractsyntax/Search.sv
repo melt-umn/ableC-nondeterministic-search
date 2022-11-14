@@ -15,6 +15,7 @@ global builtin::Location = builtinLoc("nondeterministic-search");
 abstract production searchFunctionDeclaration
 top::Decl ::= f::SearchFunctionDecl
 {
+  propagate env, controlStmtContext;
   top.pp = f.pp;
 
   local localErrors::[Message] = checkSearchInclude(f.sourceLocation, top.env) ++ f.errors;
@@ -78,12 +79,14 @@ top::SearchFunctionDecl ::= storage::StorageClasses bty::BaseTypeExpr mty::TypeM
   top.parameterTypes = params.typereps;
   top.sourceLocation = id.location;
  
+  bty.env = top.env;
   bty.controlStmtContext = initialControlStmtContext;
   bty.givenRefId = nothing();
   mty.env = openScopeEnv(addEnv(bty.defs, bty.env));
   mty.controlStmtContext = initialControlStmtContext;
   mty.baseType = bty.typerep;
   mty.typeModifierIn = bty.typeModifier;
+  id.env = top.env;
 }
 
 abstract production searchFunctionDecl
@@ -161,12 +164,14 @@ top::SearchFunctionDecl ::= storage::StorageClasses fnquals::SpecialSpecifiers b
           signedType(charType()))));
   implicitDefs <- map(valueDef(_, nameValueItem), ["__func__", "__FUNCTION__", "__PRETTY_FUNCTION__"]);
   
+  bty.env = top.env;
   bty.controlStmtContext = initialControlStmtContext;
   bty.givenRefId = nothing();
   mty.env = addEnv(implicitDefs, openScopeEnv(addEnv(searchFunctionDef(id.name, searchFunctionItem(top)) :: bty.defs, bty.env)));
   mty.controlStmtContext = initialControlStmtContext;
   mty.baseType = bty.typerep;
   mty.typeModifierIn = bty.typeModifier;
+  id.env = top.env;
   body.env = addEnv(mty.defs ++ params.functionDefs, mty.env);
   body.expectedResultType = result.typerep;
   body.nextTranslation = stmtTranslation(nullStmt());
@@ -211,6 +216,7 @@ Parameters ::= p::Decorated Parameters
 abstract production concreteInvokeExpr
 top::Expr ::= args::Exprs
 {
+  propagate env, controlStmtContext;
   top.pp = pp"invoke(${ppImplode(pp", ", args.pps)})";
   forwards to
     case args of
@@ -239,7 +245,10 @@ abstract production invokeExpr
 top::Expr ::= driver::Name driverArgs::Exprs result::MaybeExpr f::Name a::Exprs
 {
   top.pp = pp"invoke(${ppImplode(pp", ", (if driverArgs.count > 0 then pp"${driver.pp}(${ppImplode(pp", ", driverArgs.pps)})" else driver.pp) :: (if result.isJust then [result.pp] else []) ++ [pp"${f.pp}(${ppImplode(pp", ", a.pps)})"])})";
-  
+
+  driver.env = top.env;
+
+  driverArgs.env = top.env;
   driverArgs.controlStmtContext = initialControlStmtContext;
   driverArgs.expectedTypes =
     case driver.valueItem.typerep of
@@ -255,6 +264,9 @@ top::Expr ::= driver::Name driverArgs::Exprs result::MaybeExpr f::Name a::Exprs
     end;
     
   result.env = addEnv(driverArgs.defs, driverArgs.env);
+  result.controlStmtContext = initialControlStmtContext;
+
+  f.env = top.env;
   
   a.env = addEnv(result.defs, result.env);
   a.controlStmtContext = initialControlStmtContext;
