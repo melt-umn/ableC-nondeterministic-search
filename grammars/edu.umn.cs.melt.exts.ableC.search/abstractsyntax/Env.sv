@@ -73,7 +73,7 @@ top::Def ::=
 abstract production searchFunctionDef
 top::Def ::= s::String  t::SearchFunctionItem
 {
-  top.searchFunctionContribs = [pair(s, t)];
+  top.searchFunctionContribs = [(s, t)];
 }
 
 -- General convinence stuff with Name
