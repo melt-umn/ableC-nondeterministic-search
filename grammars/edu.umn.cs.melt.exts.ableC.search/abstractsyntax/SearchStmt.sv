@@ -7,8 +7,8 @@ synthesized attribute choicePPs::[Document];
 synthesized attribute seqs::[Decorated SearchStmt];
 synthesized attribute choices::[Decorated SearchStmt];
 
-inherited attribute nextTranslation::Decorated Translation;
-synthesized attribute translation::Decorated Translation;
+inherited attribute nextTranslation::Translation;
+synthesized attribute translation::Translation;
 
 -- true if flow of control is passed elsewhere by translation - i.e. nextTranslation is NOT simply
 -- appended with seqStmt

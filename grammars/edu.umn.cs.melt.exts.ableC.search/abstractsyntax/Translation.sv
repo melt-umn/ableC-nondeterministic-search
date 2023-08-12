@@ -5,27 +5,29 @@ synthesized attribute asStmt::Stmt;
 synthesized attribute asStmtLazy::Stmt;
 synthesized attribute asClosureRef::(Stmt, Stmt, Name);
 
-nonterminal Translation with asClosure, asStmt, asStmtLazy, asClosureRef;
+data nonterminal Translation with asClosure, asStmt, asStmtLazy, asClosureRef;
 
-abstract production stmtTranslation_i
+abstract production stmtTranslation
 top::Translation ::= s::Stmt
 {
   attachNote extensionGenerated("ableC-nondeterministic-search");
   top.asStmt = s;
-  
-  forwards to
-    closureTranslation_i(
-      ableC_Expr {
-        proto_typedef task_buffer_t;
-        refcount::lambda (task_buffer_t *const _schedule) -> (void) {
-          if (_cancelled == 0 || !*_cancelled) {
-            $Stmt{s}
-          }
+  top.asClosure =
+    ableC_Expr {
+      proto_typedef task_buffer_t;
+      refcount::lambda (task_buffer_t *const _schedule) -> (void) {
+        if (_cancelled == 0 || !*_cancelled) {
+          $Stmt{s}
         }
-      });
+      }
+    };
+  
+  local closureTrans::Translation = closureTranslation(top.asClosure);
+  top.asStmtLazy = closureTrans.asStmtLazy;
+  top.asClosureRef = closureTrans.asClosureRef;
 }
 
-abstract production closureRefTranslation_i
+abstract production closureRefTranslation
 top::Translation ::= n::Name
 {
   attachNote extensionGenerated("ableC-nondeterministic-search");
@@ -35,7 +37,7 @@ top::Translation ::= n::Name
   top.asClosureRef = (nullStmt(), nullStmt(), n);
 }
 
-abstract production closureTranslation_i
+abstract production closureTranslation
 top::Translation ::= e::Expr
 {
   attachNote extensionGenerated("ableC-nondeterministic-search");
@@ -54,7 +56,3 @@ top::Translation ::= e::Expr
      ableC_Stmt { $name{tmpId}.remove_ref(); },
      name(tmpId));
 }
-
-global stmtTranslation::(Decorated Translation ::= Stmt) = \ s::Stmt -> decorate stmtTranslation_i(s) with {};
-global closureRefTranslation::(Decorated Translation ::= Name) = \ n::Name -> decorate closureRefTranslation_i(n) with {};
-global closureTranslation::(Decorated Translation ::= Expr) = \ e::Expr -> decorate closureTranslation_i(e) with {};
