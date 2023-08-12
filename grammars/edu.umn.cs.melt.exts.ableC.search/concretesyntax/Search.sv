@@ -19,7 +19,7 @@ top::Declaration_c ::= 'search' f::SearchFunctionDefinition_c
   top.ast = f.ast;
 }
 
-closed nonterminal SearchFunctionDefinition_c with location, ast<Decl>;
+closed tracked nonterminal SearchFunctionDefinition_c with ast<Decl>;
 concrete productions top::SearchFunctionDefinition_c
 | d::InitialSearchFunctionDefinition_c '{' ss::SearchStmts_c '}'
   {
@@ -34,7 +34,7 @@ concrete productions top::SearchFunctionDefinition_c
     ds.givenQualifiers = ds.typeQualifiers;
     d.givenType = baseTypeExpr();
     local bt :: BaseTypeExpr =
-      figureOutTypeFromSpecifiers(ds.location, ds.typeQualifiers, ds.preTypeSpecifiers, ds.realTypeSpecifiers, ds.mutateTypeSpecifiers);
+      figureOutTypeFromSpecifiers(ds.typeQualifiers, ds.preTypeSpecifiers, ds.realTypeSpecifiers, ds.mutateTypeSpecifiers);
 
     local specialSpecifiers :: SpecialSpecifiers =
       foldr(consSpecialSpecifier, nilSpecialSpecifier(), ds.specialSpecifiers);
@@ -44,7 +44,7 @@ concrete productions top::SearchFunctionDefinition_c
 
 inherited attribute givenSearchStmt::SearchStmt;
 
-closed nonterminal InitialSearchFunctionDefinition_c with location, ast<Decl>, givenSearchStmt;
+closed tracked nonterminal InitialSearchFunctionDefinition_c with ast<Decl>, givenSearchStmt;
 concrete productions top::InitialSearchFunctionDefinition_c
 | ds::DeclarationSpecifiers_c d::Declarator_c
   {
@@ -52,7 +52,7 @@ concrete productions top::InitialSearchFunctionDefinition_c
     d.givenType = baseTypeExpr();
 
     local bt :: BaseTypeExpr =
-      figureOutTypeFromSpecifiers(ds.location, ds.typeQualifiers, ds.preTypeSpecifiers, ds.realTypeSpecifiers, ds.mutateTypeSpecifiers);
+      figureOutTypeFromSpecifiers(ds.typeQualifiers, ds.preTypeSpecifiers, ds.realTypeSpecifiers, ds.mutateTypeSpecifiers);
     
     local specialSpecifiers :: SpecialSpecifiers =
       foldr(consSpecialSpecifier, nilSpecialSpecifier(), ds.specialSpecifiers);
@@ -69,5 +69,5 @@ concrete productions top::InitialSearchFunctionDefinition_c
 concrete production invokeExpr_c
 top::PrimaryExpr_c ::= 'invoke' '(' args::ArgumentExprList_c ')'
 {
-  top.ast = concreteInvokeExpr(foldExpr(args.ast), location=top.location);
+  top.ast = concreteInvokeExpr(foldExpr(args.ast));
 }

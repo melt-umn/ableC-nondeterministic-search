@@ -18,7 +18,7 @@ top::Decl ::= f::SearchFunctionDecl
   propagate env, controlStmtContext;
   top.pp = f.pp;
 
-  local localErrors::[Message] = checkSearchInclude(f.sourceLocation, top.env) ++ f.errors;
+  local localErrors::[Message] = checkSearchInclude(top.env) ++ f.errors;
   local hostErrorTrans::Decl =
     defsDecl([valueDef("_search_function_" ++ f.name, errorValueItem())]);
   
@@ -34,8 +34,8 @@ top::Decl ::= f::SearchFunctionDecl
 synthesized attribute resultType::Type;
 synthesized attribute parameterTypes::[Type];
 
-nonterminal SearchFunctionDecl with env, pp, host<Decl>, errors, name, resultType, parameterTypes, sourceLocation;
-flowtype SearchFunctionDecl = decorate {env}, pp {}, host {decorate}, errors {decorate}, name {decorate}, resultType {decorate}, parameterTypes {decorate}, sourceLocation {decorate};
+nonterminal SearchFunctionDecl with env, pp, host<Decl>, errors, name, resultType, parameterTypes;
+flowtype SearchFunctionDecl = decorate {env}, pp {}, host {decorate}, errors {decorate}, name {decorate}, resultType {decorate}, parameterTypes {decorate};
 
 abstract production searchFunctionProto
 top::SearchFunctionDecl ::= storage::StorageClasses bty::BaseTypeExpr mty::TypeModifierExpr id::Name
@@ -77,7 +77,6 @@ top::SearchFunctionDecl ::= storage::StorageClasses bty::BaseTypeExpr mty::TypeM
   top.name = id.name;
   top.resultType = result.typerep;
   top.parameterTypes = params.typereps;
-  top.sourceLocation = id.location;
  
   bty.env = top.env;
   bty.controlStmtContext = initialControlStmtContext;
@@ -150,7 +149,6 @@ top::SearchFunctionDecl ::= storage::StorageClasses fnquals::SpecialSpecifiers b
   top.name = id.name;
   top.resultType = result.typerep;
   top.parameterTypes = params.typereps;
-  top.sourceLocation = id.location;
   
   production attribute implicitDefs::[Def] with ++;
   implicitDefs := [];
@@ -160,7 +158,7 @@ top::SearchFunctionDecl ::= storage::StorageClasses fnquals::SpecialSpecifiers b
       pointerType(
         nilQualifier(),
         builtinType(
-          consQualifier(constQualifier(location=builtinLoc("host")), nilQualifier()),
+          consQualifier(constQualifier(), nilQualifier()),
           signedType(charType()))));
   implicitDefs <- map(valueDef(_, nameValueItem), ["__func__", "__FUNCTION__", "__PRETTY_FUNCTION__"]);
   
@@ -222,22 +220,22 @@ top::Expr ::= args::Exprs
     case args of
     -- TODO: Use concrete patterns here
     | consExpr(declRefExpr(driver), consExpr(result, consExpr(ovrld:callExpr(declRefExpr(f), a), nilExpr()))) ->
-      invokeExpr(driver, nilExpr(), justExpr(result), f, a, location=top.location)
+      invokeExpr(driver, nilExpr(), justExpr(result), f, a)
     | consExpr(declRefExpr(driver), consExpr(callExpr(declRefExpr(f), a), nilExpr())) ->
-      invokeExpr(driver, nilExpr(), nothingExpr(), f, a, location=top.location)
+      invokeExpr(driver, nilExpr(), nothingExpr(), f, a)
     | consExpr(callExpr(declRefExpr(driver), driverArgs), consExpr(result, consExpr(ovrld:callExpr(declRefExpr(f), a), nilExpr()))) ->
-      invokeExpr(driver, driverArgs, justExpr(result), f, a, location=top.location)
+      invokeExpr(driver, driverArgs, justExpr(result), f, a)
     | consExpr(callExpr(declRefExpr(driver), driverArgs), consExpr(ovrld:callExpr(declRefExpr(f), a), nilExpr())) ->
-      invokeExpr(driver, driverArgs, nothingExpr(), f, a, location=top.location)
+      invokeExpr(driver, driverArgs, nothingExpr(), f, a)
     | consExpr(declRefExpr(_), consExpr(_, consExpr(_, nilExpr()))) ->
-      errorExpr([err(top.location, "Argument 3 of invoke must be a function call to an identifier")], location=top.location)
+      errorExpr([errFromOrigin(top, "Argument 3 of invoke must be a function call to an identifier")])
     | consExpr(declRefExpr(_), consExpr(_, nilExpr())) ->
-      errorExpr([err(top.location, "Argument 2 of invoke must be a function call to an identifier")], location=top.location)
+      errorExpr([errFromOrigin(top, "Argument 2 of invoke must be a function call to an identifier")])
     | consExpr(_, consExpr(_, consExpr(_, nilExpr()))) ->
-      errorExpr([err(top.location, "Argument 1 of invoke must be an identifier or function call to an identifier")], location=top.location)
+      errorExpr([errFromOrigin(top, "Argument 1 of invoke must be an identifier or function call to an identifier")])
     | consExpr(_, consExpr(_, nilExpr())) ->
-      errorExpr([err(top.location, "Argument 1 of invoke must be an identifier or function call to an identifier")], location=top.location)
-    | a -> errorExpr([err(top.location, s"Wrong number of arguments to invoke (expected 2 or 3, got ${toString(a.count)})")], location=top.location)
+      errorExpr([errFromOrigin(top, "Argument 1 of invoke must be an identifier or function call to an identifier")])
+    | a -> errorExpr([errFromOrigin(top, s"Wrong number of arguments to invoke (expected 2 or 3, got ${toString(a.count)})")])
     end;
 }
 
@@ -256,7 +254,7 @@ top::Expr ::= driver::Name driverArgs::Exprs result::MaybeExpr f::Name a::Exprs
     | _ -> []
     end;
   driverArgs.argumentPosition = 1;
-  driverArgs.callExpr = decorate declRefExpr(f, location=f.location) with {env = top.env; controlStmtContext = initialControlStmtContext; };
+  driverArgs.callExpr = decorate declRefExpr(f) with {env = top.env; controlStmtContext = initialControlStmtContext; };
   driverArgs.callVariadic = 
     case driver.valueItem.typerep of
     | functionType(_, protoFunctionType(_, variadic), _) -> variadic
@@ -272,14 +270,14 @@ top::Expr ::= driver::Name driverArgs::Exprs result::MaybeExpr f::Name a::Exprs
   a.controlStmtContext = initialControlStmtContext;
   a.expectedTypes = f.searchFunctionItem.parameterTypes;
   a.argumentPosition = 1;
-  a.callExpr = decorate declRefExpr(f, location=f.location) with {env = top.env; controlStmtContext = initialControlStmtContext; };
+  a.callExpr = decorate declRefExpr(f) with {env = top.env; controlStmtContext = initialControlStmtContext; };
   a.callVariadic = false;
   
   local localBaseErrors::[Message] =
     driver.valueLookupCheck ++ driverArgs.errors ++
     result.errors ++
     f.searchFunctionLookupCheck ++ a.errors ++
-    checkSearchInclude(top.location, top.env);
+    checkSearchInclude(top.env);
   
   local resType::Type = f.searchFunctionItem.resultType;
   local expectedDriverType::Type =
@@ -302,18 +300,18 @@ top::Expr ::= driver::Name driverArgs::Exprs result::MaybeExpr f::Name a::Exprs
     end;
   local localTypeErrors::[Message] =
     (if isDriverTypeValid
-     then [err(driver.location, s"Unexpected search driver type (expected ${showType(expectedDriverType)}, got ${showType(driver.valueItem.typerep)})")]
+     then [errFromOrigin(driver, s"Unexpected search driver type (expected ${showType(expectedDriverType)}, got ${showType(driver.valueItem.typerep)})")]
      else driverArgs.argumentErrors) ++
     case resType, result of
       builtinType(nilQualifier(), voidType()), justExpr(e) ->
-        [err(e.location, s"Unexpected search result (invoked function returns void)")]
+        [errFromOrigin(e, s"Unexpected search result (invoked function returns void)")]
     | builtinType(nilQualifier(), voidType()), nothingExpr() -> []
     | _, justExpr(e) ->
         if !typeAssignableTo(pointerType(nilQualifier(), resType), e.typerep)
-        then [err(e.location, s"Unexpected search result type (expected ${showType(pointerType(nilQualifier(), resType))}, got ${showType(e.typerep)})")]
+        then [errFromOrigin(e, s"Unexpected search result type (expected ${showType(pointerType(nilQualifier(), resType))}, got ${showType(e.typerep)})")]
         else []
     | _, nothingExpr() ->
-        [err(top.location, s"Expected a search result of type ${showType(pointerType(nilQualifier(), resType))}")]
+        [errFromOrigin(top, s"Expected a search result of type ${showType(pointerType(nilQualifier(), resType))}")]
     end ++
     a.argumentErrors;
   
@@ -358,14 +356,14 @@ top::Expr ::= driver::Name driverArgs::Exprs result::MaybeExpr f::Name a::Exprs
   
   forwards to
     if !null(localErrors) || null(lookupValue(s"_search_function_${f.name}", top.env))
-    then errorExpr(localErrors, location=builtin)
+    then errorExpr(localErrors)
     else fwrd;
 }
 
 function checkSearchInclude
-[Message] ::= loc::Location env::Decorated Env
+[Message] ::= env::Decorated Env
 {
   return
     if !null(lookupValue("task_buffer_t", env)) then []
-    else [err(loc, "Nondeterministic search requires <search.xh> to be included.")];
+    else [errFromOrigin(ambientOrigin(), "Nondeterministic search requires <search.xh> to be included.")];
 }

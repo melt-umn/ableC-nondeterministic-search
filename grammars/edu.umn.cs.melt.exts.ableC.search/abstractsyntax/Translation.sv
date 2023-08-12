@@ -27,7 +27,7 @@ top::Translation ::= s::Stmt
 abstract production closureRefTranslation_i
 top::Translation ::= n::Name
 {
-  top.asClosure = declRefExpr(n, location=builtin);
+  top.asClosure = declRefExpr(n);
   top.asStmt = ableC_Stmt { $Name{n}(_schedule); };
   top.asStmtLazy = ableC_Stmt { $Name{n}.add_ref(); put_task(_schedule, $Name{n}); };
   top.asClosureRef = (nullStmt(), nullStmt(), n);
@@ -49,7 +49,7 @@ top::Translation ::= e::Expr
   top.asClosureRef =
     (ableC_Stmt { proto_typedef task_t; task_t $name{tmpId} = $Expr{e}; },
      ableC_Stmt { $name{tmpId}.remove_ref(); },
-     name(tmpId, location=builtin));
+     name(tmpId));
 }
 
 global stmtTranslation::(Decorated Translation ::= Stmt) = \ s::Stmt -> decorate stmtTranslation_i(s) with {};

@@ -4,11 +4,11 @@ grammar edu:umn:cs:melt:exts:ableC:search:abstractsyntax;
 function foldSeqSearchStmt
 SearchStmt ::= l::[SearchStmt]
 {
-  return if null(l) then nullSearchStmt(location=builtin) else foldr1(seqSearchStmt(_, _, location=builtin), l);
+  return if null(l) then nullSearchStmt() else foldr1(seqSearchStmt(_, _), l);
 }
 
 function foldChoiceSearchStmt
 SearchStmt ::= l::[SearchStmt]
 {
-  return if null(l) then nullSearchStmt(location=builtin) else foldr1(choiceSearchStmt(_, _, location=builtin), l);
+  return if null(l) then nullSearchStmt() else foldr1(choiceSearchStmt(_, _), l);
 }
