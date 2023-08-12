@@ -95,6 +95,7 @@ top::SearchFunctionDecl ::= storage::StorageClasses fnquals::SpecialSpecifiers b
     ppConcat([
       text("search"), space(), bty.pp, space(), mty.lpp, id.pp, mty.rpp, line(),
       braces(cat(line(), nestlines(2, cat(body.pp, line()))))]);
+  attachNote extensionGenerated("ableC-nondeterministic-search");
   
   local result::Decorated TypeModifierExpr =
     case mty of
@@ -178,6 +179,7 @@ top::SearchFunctionDecl ::= storage::StorageClasses fnquals::SpecialSpecifiers b
 function makeSearchFunctionProto
 Decl ::= storage::StorageClasses id::String bty::Decorated BaseTypeExpr result::Decorated TypeModifierExpr params::Decorated Parameters variadic::Boolean q::Qualifiers 
 {
+  attachNote extensionGenerated("ableC-nondeterministic-search");
   return
     ableC_Decl {
       proto_typedef task_buffer_t;
@@ -243,6 +245,7 @@ abstract production invokeExpr
 top::Expr ::= driver::Name driverArgs::Exprs result::MaybeExpr f::Name a::Exprs
 {
   top.pp = pp"invoke(${ppImplode(pp", ", (if driverArgs.count > 0 then pp"${driver.pp}(${ppImplode(pp", ", driverArgs.pps)})" else driver.pp) :: (if result.isJust then [result.pp] else []) ++ [pp"${f.pp}(${ppImplode(pp", ", a.pps)})"])})";
+  attachNote extensionGenerated("ableC-nondeterministic-search");
 
   driver.env = top.env;
 

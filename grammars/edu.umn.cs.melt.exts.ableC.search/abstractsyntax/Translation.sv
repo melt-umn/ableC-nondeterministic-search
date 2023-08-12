@@ -10,6 +10,7 @@ nonterminal Translation with asClosure, asStmt, asStmtLazy, asClosureRef;
 abstract production stmtTranslation_i
 top::Translation ::= s::Stmt
 {
+  attachNote extensionGenerated("ableC-nondeterministic-search");
   top.asStmt = s;
   
   forwards to
@@ -27,6 +28,7 @@ top::Translation ::= s::Stmt
 abstract production closureRefTranslation_i
 top::Translation ::= n::Name
 {
+  attachNote extensionGenerated("ableC-nondeterministic-search");
   top.asClosure = declRefExpr(n);
   top.asStmt = ableC_Stmt { $Name{n}(_schedule); };
   top.asStmtLazy = ableC_Stmt { $Name{n}.add_ref(); put_task(_schedule, $Name{n}); };
@@ -36,6 +38,7 @@ top::Translation ::= n::Name
 abstract production closureTranslation_i
 top::Translation ::= e::Expr
 {
+  attachNote extensionGenerated("ableC-nondeterministic-search");
   top.asClosure = e;
   local tmpId::String = "_task_" ++ toString(genInt());
   top.asStmt =

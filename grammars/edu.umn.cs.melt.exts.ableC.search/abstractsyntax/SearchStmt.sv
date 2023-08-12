@@ -322,6 +322,7 @@ abstract production chooseDeclSearchStmt
 top::SearchStmt ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name f::Name a::Exprs
 {
   propagate env, errors;
+  attachNote extensionGenerated("ableC-nondeterministic-search");
   top.pp = pp"choose ${bty.pp} ${mty.lpp}${id.pp}${mty.rpp} = ${f.pp}(${ppImplode(pp", ", a.pps)});";
   top.errors <- id.valueRedeclarationCheckNoCompatible;
   top.errors <- f.searchFunctionLookupCheck;
@@ -386,6 +387,7 @@ abstract production chooseSucceedSearchStmt
 top::SearchStmt ::= f::Name a::Exprs
 {
   propagate env, errors;
+  attachNote extensionGenerated("ableC-nondeterministic-search");
   top.pp = pp"choose succeed ${f.pp}(${ppImplode(pp", ", a.pps)});";
   top.seqPPs = [top.pp];
   top.choicePPs = [top.pp];
