@@ -32,7 +32,7 @@ top::Decl ::= f::SearchFunctionDecl
 synthesized attribute resultType::Type;
 synthesized attribute parameterTypes::[Type];
 
-nonterminal SearchFunctionDecl with env, pp, host<Decl>, errors, name, resultType, parameterTypes;
+tracked nonterminal SearchFunctionDecl with env, pp, host<Decl>, errors, name, resultType, parameterTypes;
 flowtype SearchFunctionDecl = decorate {env}, pp {}, host {decorate}, errors {decorate}, name {decorate}, resultType {decorate}, parameterTypes {decorate};
 
 abstract production searchFunctionProto

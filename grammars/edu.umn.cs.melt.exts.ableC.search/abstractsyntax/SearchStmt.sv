@@ -14,7 +14,7 @@ synthesized attribute translation::Translation;
 -- appended with seqStmt
 synthesized attribute hasContinuation::Boolean;
 
-nonterminal SearchStmt with env, expectedResultType, nextTranslation, pp, seqPPs, choicePPs, seqs, choices, errors, defs, translation, hasContinuation;
+tracked nonterminal SearchStmt with env, expectedResultType, nextTranslation, pp, seqPPs, choicePPs, seqs, choices, errors, defs, translation, hasContinuation;
 flowtype SearchStmt = decorate {env, expectedResultType, nextTranslation}, pp {}, seqPPs {}, choicePPs {}, seqs {decorate}, choices {decorate}, errors {decorate}, defs {decorate}, translation {decorate}, hasContinuation {decorate};
 
 aspect default production
