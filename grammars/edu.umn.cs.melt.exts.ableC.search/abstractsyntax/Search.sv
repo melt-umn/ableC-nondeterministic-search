@@ -10,8 +10,6 @@ imports edu:umn:cs:melt:ableC:abstractsyntax:construction;
 imports edu:umn:cs:melt:ableC:abstractsyntax:env;
 imports edu:umn:cs:melt:exts:ableC:refCountClosure:abstractsyntax;
 
-global builtin::Location = builtinLoc("nondeterministic-search");
-
 abstract production searchFunctionDeclaration
 top::Decl ::= f::SearchFunctionDecl
 {
