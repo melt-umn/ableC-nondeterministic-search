@@ -1,6 +1,6 @@
 grammar edu:umn:cs:melt:exts:ableC:search:abstractsyntax;
 
-autocopy attribute expectedResultType::Type;
+inherited attribute expectedResultType::Type;
 
 synthesized attribute seqPPs::[Document];
 synthesized attribute choicePPs::[Document];
@@ -48,7 +48,7 @@ top::SearchStmt ::=
 abstract production compoundSearchStmt
 top::SearchStmt ::= s::SearchStmt
 {
-  propagate errors;
+  propagate env, expectedResultType, errors;
   top.pp = braces(nestlines(2, ppImplode(line(), top.seqPPs)));
   top.defs := [];
   
@@ -84,7 +84,7 @@ top::SearchStmt ::= s::Stmt
 abstract production succeedSearchStmt
 top::SearchStmt ::= me::MaybeExpr
 {
-  propagate errors;
+  propagate env, errors;
   top.pp = pp"succeed ${me.pp};";
   top.errors <-
     case top.expectedResultType, fromMaybe(builtinType(nilQualifier(), voidType()), me.maybeTyperep) of
@@ -117,7 +117,7 @@ top::SearchStmt ::=
 abstract production spawnSearchStmt
 top::SearchStmt ::= s::SearchStmt
 {
-  propagate errors;
+  propagate env, expectedResultType, errors;
   top.pp = ppConcat([pp"spawn", line(), nestlines(2, ppImplode(line(), top.seqPPs))]);
   top.defs := [];
   
@@ -143,15 +143,17 @@ top::SearchStmt ::= h::SearchStmt t::SearchStmt
   
   top.hasContinuation = h.hasContinuation || t.hasContinuation;
   
+  h.env = top.env;
   h.expectedResultType = builtinType(nilQualifier(), voidType());
   
   t.env = addEnv(h.defs, if h.hasContinuation then h.env.asCaptured else h.env);
+  t.expectedResultType = top.expectedResultType;
 }
 
 abstract production choiceSearchStmt
 top::SearchStmt ::= h::SearchStmt t::SearchStmt
 {
-  propagate errors;
+  propagate env, expectedResultType, errors;
   top.pp = pp"choice {${nestlines(2, ppImplode(line(), top.choicePPs))}}";
   top.choicePPs = h.choicePPs ++ t.choicePPs;
   top.choices = h.choices ++ t.choices;
@@ -172,7 +174,7 @@ top::SearchStmt ::= h::SearchStmt t::SearchStmt
 abstract production choiceForSearchStmt
 top::SearchStmt ::= i::MaybeExpr  c::MaybeExpr  s::MaybeExpr  b::SearchStmt
 {
-  propagate errors;
+  propagate expectedResultType, errors;
   top.pp = 
     ppConcat([text("choice for"), parens(ppConcat([i.pp, semi(), space(), c.pp, semi(), space(), s.pp])), line(),
       braces(nestlines(2, b.pp)) ]);
@@ -201,7 +203,7 @@ top::SearchStmt ::= i::MaybeExpr  c::MaybeExpr  s::MaybeExpr  b::SearchStmt
 abstract production choiceForDeclSearchStmt
 top::SearchStmt ::= i::Decl  c::MaybeExpr  s::MaybeExpr  b::SearchStmt
 {
-  propagate errors;
+  propagate expectedResultType, errors;
   top.pp = 
     ppConcat([text("choice for"), parens(ppConcat([i.pp, semi(), space(), c.pp, semi(), space(), s.pp])), line(),
       braces(nestlines(2, b.pp)) ]);
@@ -231,7 +233,7 @@ top::SearchStmt ::= i::Decl  c::MaybeExpr  s::MaybeExpr  b::SearchStmt
 abstract production finallySearchStmt
 top::SearchStmt ::= s::SearchStmt f::Stmt
 {
-  propagate defs, errors;
+  propagate expectedResultType, defs, errors;
   top.pp = pp"${s.pp} finally ${f.pp}";
   
   top.translation = stmtTranslation(seqStmt(s.translation.asStmt, f));
@@ -239,6 +241,7 @@ top::SearchStmt ::= s::SearchStmt f::Stmt
   
   top.hasContinuation = s.hasContinuation;
   
+  s.env = top.env;
   f.env = addEnv(s.defs, s.env);
   f.controlStmtContext = initialControlStmtContext;
 }
@@ -253,7 +256,7 @@ top::SearchStmt ::= c::Expr t::SearchStmt
 abstract production ifThenElseSearchStmt
 top::SearchStmt ::= c::Expr t::SearchStmt e::SearchStmt
 {
-  propagate errors;
+  propagate env, expectedResultType, errors;
   top.pp = pp"if (${c.pp} {${cat(line(), nestlines(2, t.pp))}} else {${cat(line(), nestlines(2, t.pp))}}";
   top.errors <-
     if c.typerep.defaultFunctionArrayLvalueConversion.isScalarType then []
@@ -283,6 +286,7 @@ top::SearchStmt ::= c::Expr t::SearchStmt e::SearchStmt
 abstract production chooseSearchStmt
 top::SearchStmt ::= f::Name a::Exprs
 {
+  propagate env;
   top.pp = pp"choose ${f.pp}(${ppImplode(pp", ", a.pps)});";
   top.seqPPs = [top.pp];
   top.choicePPs = [top.pp];
@@ -298,6 +302,7 @@ top::SearchStmt ::= f::Name a::Exprs
 abstract production chooseAssignSearchStmt
 top::SearchStmt ::= lhs::Expr f::Name a::Exprs
 {
+  propagate env;
   top.pp = pp"choose ${lhs.pp} = ${f.pp}(${ppImplode(pp", ", a.pps)});";
   top.seqPPs = [top.pp];
   top.choicePPs = [top.pp];
@@ -320,7 +325,7 @@ top::SearchStmt ::= lhs::Expr f::Name a::Exprs
 abstract production chooseDeclSearchStmt
 top::SearchStmt ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name f::Name a::Exprs
 {
-  propagate errors;
+  propagate env, errors;
   top.pp = pp"choose ${bty.pp} ${mty.lpp}${id.pp}${mty.rpp} = ${f.pp}(${ppImplode(pp", ", a.pps)});";
   top.errors <- id.valueRedeclarationCheckNoCompatible;
   top.errors <- f.searchFunctionLookupCheck;
@@ -384,7 +389,7 @@ top::SearchStmt ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name f::Name a::
 abstract production chooseSucceedSearchStmt
 top::SearchStmt ::= f::Name a::Exprs
 {
-  propagate errors;
+  propagate env, errors;
   top.pp = pp"choose succeed ${f.pp}(${ppImplode(pp", ", a.pps)});";
   top.seqPPs = [top.pp];
   top.choicePPs = [top.pp];
@@ -418,6 +423,7 @@ top::SearchStmt ::= f::Name a::Exprs
 abstract production pickSearchStmt
 top::SearchStmt ::= f::Name a::Exprs
 {
+  propagate env;
   top.pp = pp"pick ${f.pp}(${ppImplode(pp", ", a.pps)});";
   top.seqPPs = [top.pp];
   top.choicePPs = [top.pp];
@@ -433,6 +439,7 @@ top::SearchStmt ::= f::Name a::Exprs
 abstract production pickSucceedSearchStmt
 top::SearchStmt ::= f::Name a::Exprs
 {
+  propagate env;
   top.pp = pp"pick succeed ${f.pp}(${ppImplode(pp", ", a.pps)});";
   top.seqPPs = [top.pp];
   top.choicePPs = [top.pp];
@@ -453,6 +460,7 @@ top::SearchStmt ::= f::Name a::Exprs
 abstract production pickAssignSearchStmt
 top::SearchStmt ::= lhs::Expr f::Name a::Exprs
 {
+  propagate env;
   top.pp = pp"pick ${lhs.pp} = ${f.pp}(${ppImplode(pp", ", a.pps)});";
   top.seqPPs = [top.pp];
   top.choicePPs = [top.pp];
@@ -475,7 +483,7 @@ top::SearchStmt ::= lhs::Expr f::Name a::Exprs
 abstract production pickDeclSearchStmt
 top::SearchStmt ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name f::Name a::Exprs
 {
-  propagate errors;
+  propagate env, errors;
   top.pp = pp"pick ${bty.pp} ${mty.lpp}${id.pp}${mty.rpp} = ${f.pp}(${ppImplode(pp", ", a.pps)});";
   top.errors <- id.valueRedeclarationCheckNoCompatible;
   top.errors <- f.searchFunctionLookupCheck;
@@ -547,7 +555,7 @@ top::SearchStmt ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name f::Name a::
 abstract production requireSearchStmt
 top::SearchStmt ::= c::Expr
 {
-  propagate errors, defs;
+  propagate env, errors, defs;
   top.pp = pp"require ${c.pp};";
   top.errors <-
     if c.typerep.defaultFunctionArrayLvalueConversion.isScalarType then []
