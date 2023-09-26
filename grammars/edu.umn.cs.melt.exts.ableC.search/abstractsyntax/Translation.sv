@@ -3,7 +3,7 @@ grammar edu:umn:cs:melt:exts:ableC:search:abstractsyntax;
 synthesized attribute asClosure::Expr;
 synthesized attribute asStmt::Stmt;
 synthesized attribute asStmtLazy::Stmt;
-synthesized attribute asClosureRef::Pair<Pair<Stmt Stmt> Name>;
+synthesized attribute asClosureRef::(Stmt, Stmt, Name);
 
 nonterminal Translation with asClosure, asStmt, asStmtLazy, asClosureRef;
 
@@ -30,7 +30,7 @@ top::Translation ::= n::Name
   top.asClosure = declRefExpr(n, location=builtin);
   top.asStmt = ableC_Stmt { $Name{n}(_schedule); };
   top.asStmtLazy = ableC_Stmt { $Name{n}.add_ref(); put_task(_schedule, $Name{n}); };
-  top.asClosureRef = pair(pair(nullStmt(), nullStmt()), n);
+  top.asClosureRef = (nullStmt(), nullStmt(), n);
 }
 
 abstract production closureTranslation_i
@@ -47,11 +47,9 @@ top::Translation ::= e::Expr
     };
   top.asStmtLazy = ableC_Stmt { put_task(_schedule, $Expr{e}); };
   top.asClosureRef =
-    pair(
-      pair(
-        ableC_Stmt { proto_typedef task_t; task_t $name{tmpId} = $Expr{e}; },
-        ableC_Stmt { $name{tmpId}.remove_ref(); }),
-      name(tmpId, location=builtin));
+    (ableC_Stmt { proto_typedef task_t; task_t $name{tmpId} = $Expr{e}; },
+     ableC_Stmt { $name{tmpId}.remove_ref(); },
+     name(tmpId, location=builtin));
 }
 
 global stmtTranslation::(Decorated Translation ::= Stmt) = \ s::Stmt -> decorate stmtTranslation_i(s) with {};
