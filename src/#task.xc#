@@ -1,0 +1,123 @@
+#include <string.h>
+#include <stdbool.h>
+#include <stdio.h>
+
+#include <task.xh>
+
+struct task_buffer create_task_buffer(size_t capacity, size_t framesCapacity) {
+  task_buffer_t result;
+  result.tasks = malloc(sizeof(task_t) * capacity);
+  result.size = 0;
+  result.capacity = capacity;
+  result.isFrameOpened =ta false;
+  result.currentFrame = (struct frame){0, 0};
+  result.frames = malloc(sizeof(struct frame) * framesCapacity);
+  result.framesSize = 0;
+  result.framesCapacity = framesCapacity;
+  return result;
+}
+
+void destroy_task_buffer(task_buffer_t buffer) {
+  task_t task;
+  while (get_task(&buffer, &task)) {
+    task.remove_ref();
+  }
+  
+  free(buffer.tasks);
+  free(buffer.frames);
+}
+
+void open_frame(task_buffer_t *const p_buffer) {
+  // Set a flag indicating any new tasks should go in a new frame
+  p_buffer->isFrameOpened = true;
+}
+
+void put_task(task_buffer_t *const p_buffer, task_t task) {
+  task_buffer_t buffer = *p_buffer;
+  
+  // Open a new frame, if requested
+  if (buffer.isFrameOpened) {
+    buffer.isFrameOpened = false;
+    if (buffer.framesSize == buffer.framesCapacity) {
+      buffer.framesCapacity++;
+      buffer.framesCapacity *= 2;
+      buffer.frames = realloc(buffer.frames, sizeof(struct frame) * buffer.framesCapacity);
+    }
+    buffer.frames[buffer.framesSize] = buffer.currentFrame;
+    buffer.framesSize++;
+    buffer.currentFrame.start = buffer.currentFrame.end;
+    //fprintf(stderr, "open_frame %p %lu\n", p_buffer, buffer.framesSize);
+  }
+  
+  // Put the new task in a buffer
+  //fprintf(stderr, "put_task %p %s\n", p_buffer, task._fn_name);
+  if (buffer.currentFrame.end == buffer.capacity) {
+    buffer.capacity *= 2;
+    buffer.tasks = realloc(buffer.tasks, sizeof(task_t) * buffer.capacity);
+  }
+  buffer.tasks[buffer.currentFrame.end] = task;
+  buffer.size++;
+  buffer.currentFrame.end++;
+  *p_buffer = buffer;
+}
+
+size_t get_task(task_buffer_t *const p_buffer, task_t *task) {
+  task_buffer_t buffer = *p_buffer;
+  size_t old_size = buffer.size;
+  if (buffer.size > 0) {
+    // Invariant: If the buffer is non-empty, the current frame will be non-empty
+    *task = buffer.tasks[buffer.currentFrame.start];
+    buffer.size--;
+    buffer.currentFrame.start++;
+  }
+  if (buffer.size > 0) {
+    while (buffer.currentFrame.start == buffer.currentFrame.end) {
+      //fprintf(stderr, "closing frame %p %lu\n", p_buffer, buffer.framesSize);
+      // Current frame is empty but buffer is non-empty, restore the previous frame
+      buffer.framesSize--;
+      buffer.currentFrame = buffer.frames[buffer.framesSize];
+      buffer.isFrameOpened = true;
+    }
+  } else {
+    // Buffer is empty, restart from index 0 to save memory
+    buffer.currentFrame = (struct frame){0, 0};
+  }
+  *p_buffer = buffer;
+  // if (old_size)
+  //   fprintf(stderr, "get_task %p %lu %s\n", p_buffer, old_size, task->_fn_name);
+  // else
+  //   fprintf(stderr, "get_task %p empty\n", p_buffer);
+  return old_size;
+}
+
+size_t get_back_task(task_buffer_t *const p_buffer, task_t *task) {
+  task_buffer_t buffer = *p_buffer;
+  size_t old_size = buffer.size;
+  if (buffer.size > 0) {
+    // Search for the earliest frame containing a task
+    struct frame frame;
+    size_t i;
+    for (i = 0; i <= buffer.framesSize; i++) {
+      frame = i < buffer.framesSize? buffer.frames[i] : buffer.currentFrame;
+      if (frame.start < frame.end) {
+        break;
+      }
+    }
+    
+    // Get a task from the frame
+    *task = buffer.tasks[frame.start];
+    buffer.size--;
+    if (i < buffer.framesSize) {
+      buffer.frames[i].start++;
+    } else {
+      buffer.currentFrame.start++;
+    }
+  }
+  if (buffer.size == 0) {
+    // If we just removed the last task, then all the frames are empty
+    buffer.framesSize = 0;
+    buffer.currentFrame = (struct frame){0, 0};
+  }
+  *p_buffer = buffer;
+  return old_size;
+}

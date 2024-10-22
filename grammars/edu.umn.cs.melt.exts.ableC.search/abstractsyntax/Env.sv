@@ -1,13 +1,12 @@
 grammar edu:umn:cs:melt:exts:ableC:search:abstractsyntax;
 
-nonterminal SearchFunctionItem with parameterTypes, resultType, sourceLocation;
+nonterminal SearchFunctionItem with parameterTypes, resultType;
 
 abstract production searchFunctionItem
 top::SearchFunctionItem ::= f::Decorated SearchFunctionDecl
 {
   top.parameterTypes = f.parameterTypes;
   top.resultType = f.resultType;
-  top.sourceLocation = f.sourceLocation;
 }
 
 abstract production errorSearchFunctionItem
@@ -15,7 +14,6 @@ top::SearchFunctionItem ::=
 {
   top.parameterTypes = [];
   top.resultType = errorType();
-  top.sourceLocation = loc("nowhere", -1, -1, -1, -1, -1, -1);
 }
 
 -- Global search function env
@@ -105,9 +103,9 @@ top::Name ::= n::String
             let originalPP :: String = showType(v.resultType) ++ "(" ++ implode(", ", map(showType, v.parameterTypes)) ++ ")",
                 herePP :: String = showType(resultType) ++ "(" ++ implode(", ", map(showType, parameterTypes)) ++ ")"
              in
-                [err(top.location, 
-                  "Redeclaration of " ++ n ++ " with incompatible types. Original (from line " ++
-                  toString(v.sourceLocation.line) ++ ") " ++ originalPP ++ 
+                [errFromOrigin(top, 
+                  "Redeclaration of " ++ n ++ " with incompatible types. Original (from " ++
+                  getParsedOriginLocationOrFallback(v).unparse ++ ") " ++ originalPP ++ 
                   " but here it is " ++ herePP)]
             end
       end;
@@ -115,15 +113,15 @@ top::Name ::= n::String
     case lookupInLocalScope(n, top.env.searchFunctions) of
     | [] -> []
     | v :: _ -> 
-        [err(top.location, 
-          "Redeclaration of " ++ n ++ ". Original (from line " ++
-          toString(v.sourceLocation.line) ++ ")")]
+        [errFromOrigin(top, 
+          "Redeclaration of " ++ n ++ ". Original (from " ++
+          getParsedOriginLocationOrFallback(v).unparse ++ ")")]
     end;
   
   local searchFunctions::[SearchFunctionItem] = lookupScope(n, top.env.searchFunctions);
   top.searchFunctionLookupCheck =
     case searchFunctions of
-    | [] -> [err(top.location, "Undeclared search function " ++ n)]
+    | [] -> [errFromOrigin(top, "Undeclared search function " ++ n)]
     | _ :: _ -> []
     end;
   
@@ -213,8 +211,7 @@ abstract production constValueItem
 top::ValueItem ::= ref::Decorated ValueItem
 {
   top.pp = pp"const ${ref.pp}";
-  top.typerep = addQualifiers([constQualifier(location=builtin)], ref.typerep);
-  top.sourceLocation = ref.sourceLocation;
+  top.typerep = addQualifiers([constQualifier()], ref.typerep);
   top.isItemValue = ref.isItemValue;
   top.asCaptured = top; -- Non-interfering optimization
 }

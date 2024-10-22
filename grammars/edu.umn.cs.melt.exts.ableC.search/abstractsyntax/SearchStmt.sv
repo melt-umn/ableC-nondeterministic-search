@@ -7,14 +7,14 @@ synthesized attribute choicePPs::[Document];
 synthesized attribute seqs::[Decorated SearchStmt];
 synthesized attribute choices::[Decorated SearchStmt];
 
-inherited attribute nextTranslation::Decorated Translation;
-synthesized attribute translation::Decorated Translation;
+inherited attribute nextTranslation::Translation;
+synthesized attribute translation::Translation;
 
 -- true if flow of control is passed elsewhere by translation - i.e. nextTranslation is NOT simply
 -- appended with seqStmt
 synthesized attribute hasContinuation::Boolean;
 
-nonterminal SearchStmt with env, expectedResultType, nextTranslation, pp, seqPPs, choicePPs, seqs, choices, errors, defs, translation, hasContinuation, location;
+tracked nonterminal SearchStmt with env, expectedResultType, nextTranslation, pp, seqPPs, choicePPs, seqs, choices, errors, defs, translation, hasContinuation;
 flowtype SearchStmt = decorate {env, expectedResultType, nextTranslation}, pp {}, seqPPs {}, choicePPs {}, seqs {decorate}, choices {decorate}, errors {decorate}, defs {decorate}, translation {decorate}, hasContinuation {decorate};
 
 aspect default production
@@ -91,7 +91,7 @@ top::SearchStmt ::= me::MaybeExpr
       builtinType(nilQualifier(), voidType()), builtinType(nilQualifier(), voidType()) -> []
     | expectedType, actualType ->
       if !typeAssignableTo(expectedType, actualType)
-      then [err(top.location, s"Incompatible result type (expected ${showType(expectedType)}, got ${showType(actualType)})")]
+      then [errFromOrigin(top, s"Incompatible result type (expected ${showType(expectedType)}, got ${showType(actualType)})")]
       else []
     end;
   
@@ -99,7 +99,7 @@ top::SearchStmt ::= me::MaybeExpr
   top.translation =
     if me.isJust
     then stmtTranslation(ableC_Stmt { _continuation(_schedule, $Expr{me.justTheExpr.fromJust}); })
-    else closureRefTranslation(name("_continuation", location=builtin));
+    else closureRefTranslation(name("_continuation"));
   top.hasContinuation = true;
   
   me.controlStmtContext = initialControlStmtContext;
@@ -250,7 +250,7 @@ abstract production ifThenSearchStmt
 top::SearchStmt ::= c::Expr t::SearchStmt
 {
   top.pp = pp"if (${c.pp} {${cat(line(), nestlines(2, t.pp))}}";
-  forwards to ifThenElseSearchStmt(c, t, nullSearchStmt(location=top.location), location=top.location);
+  forwards to ifThenElseSearchStmt(c, t, nullSearchStmt());
 }
 
 abstract production ifThenElseSearchStmt
@@ -260,7 +260,7 @@ top::SearchStmt ::= c::Expr t::SearchStmt e::SearchStmt
   top.pp = pp"if (${c.pp} {${cat(line(), nestlines(2, t.pp))}} else {${cat(line(), nestlines(2, t.pp))}}";
   top.errors <-
     if c.typerep.defaultFunctionArrayLvalueConversion.isScalarType then []
-    else [err(c.location, "If condition must be scalar type, instead it is " ++ showType(c.typerep))];
+    else [errFromOrigin(c, "If condition must be scalar type, instead it is " ++ showType(c.typerep))];
   top.defs := [];
   
   local directTranslation::Stmt = ifStmt(c, t.translation.asStmt, e.translation.asStmt);
@@ -294,9 +294,8 @@ top::SearchStmt ::= f::Name a::Exprs
     chooseDeclSearchStmt(
       directTypeExpr(f.searchFunctionItem.resultType),
       baseTypeExpr(),
-      name(s"_result_${toString(genInt())}", location=builtin),
-      f, a,
-      location=top.location);
+      name(s"_result_${toString(genInt())}"),
+      f, a);
 }
 
 abstract production chooseAssignSearchStmt
@@ -307,25 +306,23 @@ top::SearchStmt ::= lhs::Expr f::Name a::Exprs
   top.seqPPs = [top.pp];
   top.choicePPs = [top.pp];
   
-  local resultName::Name = name(s"_result_${toString(genInt())}", location=builtin);
+  local resultName::Name = name(s"_result_${toString(genInt())}");
   forwards to
     seqSearchStmt(
       chooseDeclSearchStmt(
         directTypeExpr(f.searchFunctionItem.resultType),
         baseTypeExpr(),
         resultName,
-        f, a,
-        location=top.location),
+        f, a),
       stmtSearchStmt(
-        exprStmt(eqExpr(lhs, declRefExpr(resultName, location=builtin), location=top.location)),
-        location=top.location),
-      location=top.location);
+        exprStmt(eqExpr(lhs, declRefExpr(resultName)))));
 }
 
 abstract production chooseDeclSearchStmt
 top::SearchStmt ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name f::Name a::Exprs
 {
   propagate env, errors;
+  attachNote extensionGenerated("ableC-nondeterministic-search");
   top.pp = pp"choose ${bty.pp} ${mty.lpp}${id.pp}${mty.rpp} = ${f.pp}(${ppImplode(pp", ", a.pps)});";
   top.errors <- id.valueRedeclarationCheckNoCompatible;
   top.errors <- f.searchFunctionLookupCheck;
@@ -334,7 +331,7 @@ top::SearchStmt ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name f::Name a::
       builtinType(nilQualifier(), voidType()), builtinType(nilQualifier(), voidType()) -> []
     | expectedType, actualType ->
       if !compatibleTypes(expectedType, actualType, false, false)
-      then [err(f.location, s"Incompatible type in choose declaration (expected ${showType(expectedType)}, got ${showType(actualType)})")]
+      then [errFromOrigin(f, s"Incompatible type in choose declaration (expected ${showType(expectedType)}, got ${showType(actualType)})")]
       else []
     end;
   top.errors <- if null(f.searchFunctionLookupCheck) then a.argumentErrors else [];
@@ -382,7 +379,7 @@ top::SearchStmt ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name f::Name a::
   a.controlStmtContext = initialControlStmtContext;
   a.expectedTypes = f.searchFunctionItem.parameterTypes;
   a.argumentPosition = 1;
-  a.callExpr = decorate declRefExpr(f, location=f.location) with {env = top.env; controlStmtContext = initialControlStmtContext; };
+  a.callExpr = decorate declRefExpr(f) with {env = top.env; controlStmtContext = initialControlStmtContext; };
   a.callVariadic = false;
 }
 
@@ -390,6 +387,7 @@ abstract production chooseSucceedSearchStmt
 top::SearchStmt ::= f::Name a::Exprs
 {
   propagate env, errors;
+  attachNote extensionGenerated("ableC-nondeterministic-search");
   top.pp = pp"choose succeed ${f.pp}(${ppImplode(pp", ", a.pps)});";
   top.seqPPs = [top.pp];
   top.choicePPs = [top.pp];
@@ -399,7 +397,7 @@ top::SearchStmt ::= f::Name a::Exprs
       builtinType(nilQualifier(), voidType()), builtinType(nilQualifier(), voidType()) -> []
     | expectedType, actualType ->
       if !compatibleTypes(expectedType, actualType, false, false)
-      then [err(top.location, s"Incompatible result type (expected ${showType(expectedType)}, got ${showType(actualType)})")]
+      then [errFromOrigin(top, s"Incompatible result type (expected ${showType(expectedType)}, got ${showType(actualType)})")]
       else []
     end;
   
@@ -416,7 +414,7 @@ top::SearchStmt ::= f::Name a::Exprs
   a.controlStmtContext = initialControlStmtContext;
   a.expectedTypes = f.searchFunctionItem.parameterTypes;
   a.argumentPosition = 1;
-  a.callExpr = decorate declRefExpr(f, location=f.location) with {env = top.env; controlStmtContext = initialControlStmtContext; };
+  a.callExpr = decorate declRefExpr(f) with {env = top.env; controlStmtContext = initialControlStmtContext; };
   a.callVariadic = false;
 }
 
@@ -431,9 +429,8 @@ top::SearchStmt ::= f::Name a::Exprs
     pickDeclSearchStmt(
       directTypeExpr(f.searchFunctionItem.resultType),
       baseTypeExpr(),
-      name(s"_result_${toString(genInt())}", location=builtin),
-      f, a,
-      location=top.location);
+      name(s"_result_${toString(genInt())}"),
+      f, a);
 }
 
 abstract production pickSucceedSearchStmt
@@ -444,17 +441,15 @@ top::SearchStmt ::= f::Name a::Exprs
   top.seqPPs = [top.pp];
   top.choicePPs = [top.pp];
   
-  local resultName::Name = name(s"_result_${toString(genInt())}", location=builtin);
+  local resultName::Name = name(s"_result_${toString(genInt())}");
   forwards to
     seqSearchStmt(
       pickDeclSearchStmt(
         directTypeExpr(f.searchFunctionItem.resultType),
         baseTypeExpr(),
         resultName,
-        f, a,
-        location=top.location),
-      succeedSearchStmt(justExpr(declRefExpr(resultName, location=builtin)), location=top.location),
-      location=top.location);
+        f, a),
+      succeedSearchStmt(justExpr(declRefExpr(resultName))));
 }
 
 abstract production pickAssignSearchStmt
@@ -465,19 +460,16 @@ top::SearchStmt ::= lhs::Expr f::Name a::Exprs
   top.seqPPs = [top.pp];
   top.choicePPs = [top.pp];
   
-  local resultName::Name = name(s"_result_${toString(genInt())}", location=builtin);
+  local resultName::Name = name(s"_result_${toString(genInt())}");
   forwards to
     seqSearchStmt(
       pickDeclSearchStmt(
         directTypeExpr(f.searchFunctionItem.resultType),
         baseTypeExpr(),
         resultName,
-        f, a,
-        location=top.location),
+        f, a),
       stmtSearchStmt(
-        exprStmt(eqExpr(lhs, declRefExpr(resultName, location=builtin), location=top.location)),
-        location=top.location),
-      location=top.location);
+        exprStmt(eqExpr(lhs, declRefExpr(resultName)))));
 }
 
 abstract production pickDeclSearchStmt
@@ -492,7 +484,7 @@ top::SearchStmt ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name f::Name a::
       builtinType(nilQualifier(), voidType()), builtinType(nilQualifier(), voidType()) -> []
     | expectedType, actualType ->
       if !compatibleTypes(expectedType, actualType, false, false)
-      then [err(f.location, s"Incompatible type in pick declaration (expected ${showType(expectedType)}, got ${showType(actualType)})")]
+      then [errFromOrigin(f, s"Incompatible type in pick declaration (expected ${showType(expectedType)}, got ${showType(actualType)})")]
       else []
     end;
   top.errors <- if null(f.searchFunctionLookupCheck) then a.argumentErrors else [];
@@ -548,7 +540,7 @@ top::SearchStmt ::= bty::BaseTypeExpr mty::TypeModifierExpr id::Name f::Name a::
   a.controlStmtContext = initialControlStmtContext;
   a.expectedTypes = f.searchFunctionItem.parameterTypes;
   a.argumentPosition = 1;
-  a.callExpr = decorate declRefExpr(f, location=f.location) with {env = top.env; controlStmtContext = initialControlStmtContext; };
+  a.callExpr = decorate declRefExpr(f) with {env = top.env; controlStmtContext = initialControlStmtContext; };
   a.callVariadic = false;
 }
 
@@ -559,7 +551,7 @@ top::SearchStmt ::= c::Expr
   top.pp = pp"require ${c.pp};";
   top.errors <-
     if c.typerep.defaultFunctionArrayLvalueConversion.isScalarType then []
-    else [err(c.location, "require condition must be scalar type, instead it is " ++ showType(c.typerep))];
+    else [errFromOrigin(c, "require condition must be scalar type, instead it is " ++ showType(c.typerep))];
   top.translation = stmtTranslation(ifStmtNoElse(c, top.nextTranslation.asStmt));
   top.hasContinuation = false;
   
